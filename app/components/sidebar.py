@@ -13,5 +13,6 @@ def render_sidebar():
         st.page_link("pages/02_diagnostico.py", label="Diagnóstico Técnico",   icon="🔍")
         st.page_link("pages/03_presupuesto.py", label="Presupuesto",           icon="📋")
         st.page_link("pages/04_seguimiento.py", label="Seguimiento",           icon="📊")
+        st.page_link("pages/05_central.py",     label="Central",               icon="🗂️")
         st.markdown("---")
         st.caption("Bynary Solutions · 2026")

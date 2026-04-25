@@ -107,25 +107,29 @@ def listar_ots(
     estado: Optional[str] = None,
     cliente_id: Optional[int] = None,
     solo_activas: bool = False,
+    incluir_canceladas: bool = True,
 ) -> list[dict]:
     """
     Lista órdenes de trabajo con filtros opcionales.
-    
+
     Args:
         estado: Filtrar por estado específico
         cliente_id: Filtrar por cliente
         solo_activas: Si True, excluye ENTREGADO
+        incluir_canceladas: Si False, excluye CANCELADO
     """
     cliente = obtener_cliente()
     consulta = cliente.table("ordenes_trabajo").select("*")
-    
+
     if estado:
         consulta = consulta.eq("estado", estado)
     if cliente_id:
         consulta = consulta.eq("cliente_id", cliente_id)
     if solo_activas:
         consulta = consulta.neq("estado", "ENTREGADO")
-    
+    if not incluir_canceladas:
+        consulta = consulta.neq("estado", "CANCELADO")
+
     respuesta = consulta.order("created_at", desc=True).execute()
     return respuesta.data or []
 
@@ -319,12 +323,18 @@ def obtener_ots_con_detalle(
     solo_activas: bool = True,
     estado: Optional[str] = None,
     cliente_id: Optional[int] = None,
+    incluir_canceladas: bool = False,
 ) -> list[dict]:
     """
     Retorna OTs con datos expandidos de cliente, recepción, diagnóstico y presupuesto.
     Ideal para la vista de seguimiento.
     """
-    ots = listar_ots(estado=estado, cliente_id=cliente_id, solo_activas=solo_activas)
+    ots = listar_ots(
+        estado=estado,
+        cliente_id=cliente_id,
+        solo_activas=solo_activas,
+        incluir_canceladas=incluir_canceladas,
+    )
     
     resultado = []
     for ot in ots:

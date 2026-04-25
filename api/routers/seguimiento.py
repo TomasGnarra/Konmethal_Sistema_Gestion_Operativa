@@ -21,10 +21,11 @@ def listar_ots_seguimiento(
     estado: str = None,
     cliente_id: int = None,
     incluir_entregadas: bool = False,
+    incluir_canceladas: bool = False,
 ):
     """
     Lista OTs con datos expandidos para la vista de seguimiento.
-    Por defecto excluye las OTs entregadas.
+    Por defecto excluye las OTs entregadas y canceladas.
     """
     try:
         solo_activas = not incluir_entregadas
@@ -32,6 +33,7 @@ def listar_ots_seguimiento(
             solo_activas=solo_activas,
             estado=estado,
             cliente_id=cliente_id,
+            incluir_canceladas=incluir_canceladas,
         )
         return {"ordenes_trabajo": ots}
     except Exception as e:
