@@ -105,7 +105,7 @@ col1.metric("🔧 OTs Activas", total_activas)
 col2.metric("⏳ Pendtes. Diagnóstico", pendientes)
 
 # Metric 3: Presupuestos Enviados (Etapa = Cotizado o Estado = ENVIADO, usando etapa 'Cotizado' por ahora)
-presupuestos_enviados = sum(1 for ot in ots if ot.get("presupuesto", {}).get("estado") == "ENVIADO")
+presupuestos_enviados = sum(1 for ot in ots if (ot.get("presupuesto") or {}).get("estado") == "ENVIADO")
 col3.metric("📤 Presup. Enviados", presupuestos_enviados)
 
 # Metric 4: Demoradas
@@ -117,20 +117,18 @@ st.subheader("Órdenes de Trabajo Activas")
 
 if ots:
     # Preparar tabla HTML para soportar custom colores y badges
-    html_table = """
-    <table style="width:100%; border-collapse: collapse; font-size: 0.9em; font-family: sans-serif;">
-        <thead>
-            <tr style="background-color: #f2f2f2; text-align: left; border-bottom: 2px solid #ddd;">
-                <th style="padding: 12px; font-weight: bold;">NRO OT</th>
-                <th style="padding: 12px; font-weight: bold;">CLIENTE</th>
-                <th style="padding: 12px; font-weight: bold;">EQUIPO</th>
-                <th style="padding: 12px; font-weight: bold;">ESTADO</th>
-                <th style="padding: 12px; font-weight: bold;">ENTREGA PREVISTA</th>
-                <th style="padding: 12px; font-weight: bold;">DÍAS</th>
-            </tr>
-        </thead>
-        <tbody>
-    """
+    html_table = """<table style="width:100%; border-collapse: collapse; font-size: 0.9em; font-family: sans-serif;">
+<thead>
+<tr style="background-color: #1A3A6B; color: #FFFFFF; text-align: left; border-bottom: 2px solid #ddd;">
+<th style="padding: 12px; font-weight: bold;">NRO OT</th>
+<th style="padding: 12px; font-weight: bold;">CLIENTE</th>
+<th style="padding: 12px; font-weight: bold;">EQUIPO</th>
+<th style="padding: 12px; font-weight: bold;">ESTADO</th>
+<th style="padding: 12px; font-weight: bold;">ENTREGA PREVISTA</th>
+<th style="padding: 12px; font-weight: bold;">DÍAS</th>
+</tr>
+</thead>
+<tbody>"""
     
     for ot in sorted(ots, key=lambda x: x.get('fecha_entrega_prevista') or "9999-12-31"):
         nro = ot.get("id", "-")
@@ -155,22 +153,18 @@ if ots:
             
         badge = badge_estado(estado)
         
-        row_html = f"""
-            <tr style="border-bottom: 1px solid #ddd;">
-                <td style="padding: 12px; font-weight: 500;">{nro}</td>
-                <td style="padding: 12px;">{cliente}</td>
-                <td style="padding: 12px;">{equipo}</td>
-                <td style="padding: 12px;">{badge}</td>
-                <td style="padding: 12px;">{dt_str}</td>
-                <td style="padding: 12px;">{dias_str}</td>
-            </tr>
-        """
+        row_html = f"""<tr style="border-bottom: 1px solid #ddd;">
+<td style="padding: 12px; font-weight: 500;">{nro}</td>
+<td style="padding: 12px;">{cliente}</td>
+<td style="padding: 12px;">{equipo}</td>
+<td style="padding: 12px;">{badge}</td>
+<td style="padding: 12px;">{dt_str}</td>
+<td style="padding: 12px;">{dias_str}</td>
+</tr>"""
         html_table += row_html
 
-    html_table += """
-        </tbody>
-    </table>
-    """
+    html_table += """</tbody>
+</table>"""
     st.markdown(html_table, unsafe_allow_html=True)
 else:
     st.success("✅ No hay órdenes de trabajo activas. ¡Todo al día!")

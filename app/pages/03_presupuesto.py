@@ -39,19 +39,17 @@ def renderizar_resumen(ot_id, pres_existente):
     else:
         st.markdown(f"**Estado:** {badge_estado('NUEVO')}", unsafe_allow_html=True)
         
-    html_ticket = f"""
-    <div style="background-color: #F5F5F5; border-top: 4px solid #1A3A6B; border-bottom: 4px solid #1A3A6B; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 1.1em; color: #1C1C1C;">
-        <div style="display: flex; justify-content: space-between;"><span>Mano de obra:</span> <span>{formatear_moneda(suma_mo)}</span></div>
-        <div style="display: flex; justify-content: space-between;"><span>Materiales:</span> <span>{formatear_moneda(suma_mat)}</span></div>
-        <div style="display: flex; justify-content: space-between;"><span>Servicios:</span> <span>{formatear_moneda(suma_serv)}</span></div>
-        <div style="display: flex; justify-content: space-between;"><span>Otros gastos:</span> <span>{formatear_moneda(otros_gastos)}</span></div>
-        <hr style="border-top: 1px dashed #4A4A4A; margin: 10px 0;">
-        <div style="display: flex; justify-content: space-between;"><strong>COSTO TOTAL:</strong> <strong>{formatear_moneda(tc)}</strong></div>
-        <div style="display: flex; justify-content: space-between;"><span>Ganancia {pct_ganancia}%:</span> <span>{formatear_moneda(ganancia_neta)}</span></div>
-        <hr style="border-top: 1px solid #1A3A6B; margin: 10px 0;">
-        <div style="display: flex; justify-content: space-between; font-size: 1.2M; font-weight: bold; color: #27AE60;"><span>PRECIO VENTA:</span> <span>{formatear_moneda(tv)}</span></div>
-    </div>
-    """
+    html_ticket = f"""<div style="background-color: #F5F5F5; border-top: 4px solid #1A3A6B; border-bottom: 4px solid #1A3A6B; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 1.1em; color: #1C1C1C;">
+<div style="display: flex; justify-content: space-between;"><span>Mano de obra:</span> <span>{formatear_moneda(suma_mo)}</span></div>
+<div style="display: flex; justify-content: space-between;"><span>Materiales:</span> <span>{formatear_moneda(suma_mat)}</span></div>
+<div style="display: flex; justify-content: space-between;"><span>Servicios:</span> <span>{formatear_moneda(suma_serv)}</span></div>
+<div style="display: flex; justify-content: space-between;"><span>Otros gastos:</span> <span>{formatear_moneda(otros_gastos)}</span></div>
+<hr style="border-top: 1px dashed #4A4A4A; margin: 10px 0;">
+<div style="display: flex; justify-content: space-between;"><strong>COSTO TOTAL:</strong> <strong>{formatear_moneda(tc)}</strong></div>
+<div style="display: flex; justify-content: space-between;"><span>Ganancia {pct_ganancia}%:</span> <span>{formatear_moneda(ganancia_neta)}</span></div>
+<hr style="border-top: 1px solid #1A3A6B; margin: 10px 0;">
+<div style="display: flex; justify-content: space-between; font-size: 1.2M; font-weight: bold; color: #27AE60;"><span>PRECIO VENTA:</span> <span>{formatear_moneda(tv)}</span></div>
+</div>"""
     st.markdown(html_ticket, unsafe_allow_html=True)
     return tc, tv
 

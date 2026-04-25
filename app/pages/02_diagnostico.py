@@ -89,22 +89,20 @@ def mostrar_pagina():
             
         # --- Tarjeta Resumen Recepción ---
         st.markdown("### 📋 Resumen de Recepción")
-        recepcion_html = f"""
-        <div style="background-color: #F5F5F5; border-left: 4px solid #E74C3C; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-            <div style="font-size: 1.1em; font-weight: bold; color: #1A3A6B; margin-bottom: 5px;">
-                {ot.get('id', '-')} · {cliente.get('nombre', '-')}
-            </div>
-            <div style="margin-bottom: 5px;">
-                <strong>Equipo:</strong> {ot.get('maquina', '-')} — {ot.get('descripcion_trabajo', '-')}
-            </div>
-            <div style="margin-bottom: 5px;">
-                <strong>Ingreso:</strong> {formatear_fecha(ot.get('fecha_ingreso'))} · <strong>Entrega prevista:</strong> {formatear_fecha(ot.get('fecha_entrega_prevista'))}
-            </div>
-            <div>
-                <strong>Estado pieza:</strong> {recepcion.get('estado_pieza', '-')} | <strong>Falla reportada:</strong> {recepcion.get('causa_falla', '-')}
-            </div>
-        </div>
-        """
+        recepcion_html = f"""<div style="background-color: #F5F5F5; border-left: 4px solid #E74C3C; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+<div style="font-size: 1.1em; font-weight: bold; color: #1A3A6B; margin-bottom: 5px;">
+{ot.get('id', '-')} · {cliente.get('nombre', '-')}
+</div>
+<div style="margin-bottom: 5px;">
+<strong>Equipo:</strong> {ot.get('maquina', '-')} — {ot.get('descripcion_trabajo', '-')}
+</div>
+<div style="margin-bottom: 5px;">
+<strong>Ingreso:</strong> {formatear_fecha(ot.get('fecha_ingreso'))} · <strong>Entrega prevista:</strong> {formatear_fecha(ot.get('fecha_entrega_prevista'))}
+</div>
+<div>
+<strong>Estado pieza:</strong> {recepcion.get('estado_pieza', '-')} | <strong>Falla reportada:</strong> {recepcion.get('causa_falla', '-')}
+</div>
+</div>"""
         st.markdown(recepcion_html, unsafe_allow_html=True)
         
         # --- Historial ---
