@@ -12,7 +12,6 @@ from datetime import date
 from app.utils.supabase_client import obtener_url_api
 from app.utils.helpers import (
     formatear_fecha,
-    formatear_moneda,
     calcular_atraso,
     construir_timeline,
     ESTADOS_OT,
@@ -181,106 +180,84 @@ def mostrar_pagina():
 
         st.divider()
 
-        tab_rec, tab_diag, tab_pres, tab_acc = st.tabs([
-            "📥 Recepción", "🔍 Diagnóstico", "💰 Presupuesto", "⚙️ Acciones"
-        ])
-        
-        with tab_rec:
-            st.markdown(f"**Máquina/Equipo:** {ot_seleccionada.get('maquina', '-')}")
-            st.markdown(f"**Trabajo a realizar:** {ot_seleccionada.get('descripcion_trabajo', '-')}")
-            st.markdown(f"**Fecha ingreso:** {formatear_fecha(ot_seleccionada.get('fecha_ingreso'))}")
-            st.markdown(f"**Entrega prevista:** {formatear_fecha(ot_seleccionada.get('fecha_entrega_prevista'))}")
-            recepcion = ot_seleccionada.get("recepcion")
-            if recepcion:
-                st.markdown("---")
-                st.markdown("#### Datos Técnicos de Ingreso")
-                rc1, rc2 = st.columns(2)
-                rc1.markdown(f"**Estado de la pieza:** {recepcion.get('estado_pieza', '-')}")
-                rc1.markdown(f"**Causa de falla:** {recepcion.get('causa_falla', '-')}")
-                rc2.markdown(f"**Material base:** {recepcion.get('material_base', '-')}")
-                if recepcion.get("observaciones"):
-                     st.markdown(f"**Observaciones:** {recepcion['observaciones']}")
-            else:
-                st.info("Sin datos técnicos de recepción registrados.")
-                
-        with tab_diag:
-            diagnostico = ot_seleccionada.get("diagnostico")
-            if diagnostico:
-                st.markdown(f"**Conclusión:** {diagnostico.get('conclusion', '-')}")
-                st.markdown(f"**Tipo falla:** {diagnostico.get('tipo_falla', '-')}")
-                st.markdown(f"**Factibilidad:** {'Sí' if diagnostico.get('factibilidad') else 'No'}")
-                st.markdown(f"**Técnico:** {diagnostico.get('tecnico_responsable', '-')}")
-                if diagnostico.get("dimensiones"):
-                    st.markdown(f"**Dimensiones:** {diagnostico['dimensiones']}")
-                if diagnostico.get("notas"):
-                    st.markdown(f"**Notas:** {diagnostico['notas']}")
-            else:
-                st.warning("⚠️ Sin diagnóstico registrado.")
-                
-        with tab_pres:
-            presupuesto = ot_seleccionada.get("presupuesto")
-            if presupuesto:
-                st.markdown(f"**Estado Presupuesto:** {badge_estado(presupuesto.get('estado', '-'))}", unsafe_allow_html=True)
-                st.markdown(f"**Costo Interno:** {formatear_moneda(presupuesto.get('total_costo'))}")
-                st.markdown(f"<h3 style='color: #27AE60;'>Total Venta: {formatear_moneda(presupuesto.get('total_venta'))}</h3>", unsafe_allow_html=True)
-                if presupuesto.get("pdf_url"):
-                    st.markdown(f"📎 [**Descargar PDF de Presupuesto**]({presupuesto['pdf_url']})")
-                
-                mo_items = presupuesto.get("items_mano_obra", [])
-                mat_items = presupuesto.get("items_materiales", [])
-                
-                if mo_items or mat_items:
-                    with st.expander("Ver desglose de ítems"):
-                        st.markdown("**Mano de Obra:**")
-                        for i in mo_items:
-                            st.markdown(f" - {i['descripcion']} (Hs: {i.get('horas', i.get('cantidad_horas', '-'))}) -> **{formatear_moneda(i.get('subtotal', 0))}**")
-                        st.markdown("**Materiales:**")
-                        for m in mat_items:
-                            st.markdown(f" - {m['denominacion']} (Cant: {m.get('cantidad', '-')}) -> **{formatear_moneda(m.get('subtotal', 0))}**")
-            else:
-                st.warning("⚠️ Sin presupuesto registrado.")
-                
-        with tab_acc:
-            st.markdown("### Cambiar Estado y Etapa")
-            ac1, ac2 = st.columns(2)
-            with ac1:
-                nuevo_estado = st.selectbox(
-                    "Nuevo Estado:",
-                    ESTADOS_OT,
-                    index=ESTADOS_OT.index(ot_seleccionada["estado"]) if ot_seleccionada.get("estado") in ESTADOS_OT else 0
-                )
-            with ac2:
-                etapa_actual = ot_seleccionada.get("etapa", ETAPAS_OT[0])
-                nueva_etapa = st.selectbox(
-                    "Nueva Etapa:",
-                    ETAPAS_OT,
-                    index=ETAPAS_OT.index(etapa_actual) if etapa_actual in ETAPAS_OT else 0
-                )
-            
-            if st.button("💾 Guardar Cambios de Estado", kind="primary"):
-                try:
-                    datos_actualizar = {}
-                    if nuevo_estado != ot_seleccionada.get("estado"):
-                        datos_actualizar["estado"] = nuevo_estado
-                    if nueva_etapa != ot_seleccionada.get("etapa"):
-                        datos_actualizar["etapa"] = nueva_etapa
-                    
-                    if nuevo_estado == "ENTREGADO" and ot_seleccionada.get("estado") != "ENTREGADO":
-                        datos_actualizar["fecha_entrega_real"] = date.today().isoformat()
-                    
-                    if datos_actualizar:
-                        resp = httpx.patch(
-                            f"{url_api}/seguimiento/{ot_seleccionada['id']}",
-                            json=datos_actualizar,
-                            timeout=10,
-                        )
-                        resp.raise_for_status()
-                        st.success(f"✅ OT {ot_seleccionada['id']} actualizada correctamente.")
-                        st.rerun()
-                    else:
-                        st.info("No detectamos cambios para guardar.")
-                except Exception as e:
-                    st.error(f"❌ Error al guardar: {str(e)}")
+        # --- Panel operativo ---
+        nombre_cliente = ot_seleccionada.get("cliente", {}).get("nombre", "-") if ot_seleccionada.get("cliente") else "-"
+        st.markdown(f"#### Actualización Operativa")
+        st.info(
+            f"**Equipo:** {ot_seleccionada.get('maquina', '-')} · "
+            f"**Ingreso:** {formatear_fecha(ot_seleccionada.get('fecha_ingreso'))} · "
+            f"**Etapa actual:** {ot_seleccionada.get('etapa', '-')}"
+        )
+
+        # Estado y Etapa
+        ac1, ac2 = st.columns(2)
+        nuevo_estado = ac1.selectbox(
+            "Estado",
+            ESTADOS_OT,
+            index=ESTADOS_OT.index(ot_seleccionada["estado"]) if ot_seleccionada.get("estado") in ESTADOS_OT else 0,
+            key=f"seg_estado_{ot_seleccionada['id']}",
+        )
+        etapa_actual = ot_seleccionada.get("etapa", ETAPAS_OT[0])
+        nueva_etapa = ac2.selectbox(
+            "Etapa",
+            ETAPAS_OT,
+            index=ETAPAS_OT.index(etapa_actual) if etapa_actual in ETAPAS_OT else 0,
+            key=f"seg_etapa_{ot_seleccionada['id']}",
+        )
+
+        # Fechas y horas
+        fc1, fc2, fc3 = st.columns(3)
+        fp_actual = ot_seleccionada.get("fecha_entrega_prevista")
+        fr_actual = ot_seleccionada.get("fecha_entrega_real")
+
+        nueva_fecha_prevista = fc1.date_input(
+            "Entrega prevista",
+            value=date.fromisoformat(fp_actual[:10]) if fp_actual else None,
+            key=f"seg_fp_{ot_seleccionada['id']}",
+        )
+        nueva_fecha_real = fc2.date_input(
+            "Entrega real",
+            value=date.fromisoformat(fr_actual[:10]) if fr_actual else None,
+            key=f"seg_fr_{ot_seleccionada['id']}",
+        )
+        nuevas_horas = fc3.number_input(
+            "Hs empleadas",
+            value=float(ot_seleccionada.get("horas_empleadas") or 0),
+            min_value=0.0,
+            step=0.5,
+            key=f"seg_hs_{ot_seleccionada['id']}",
+        )
+
+        if st.button("💾 Guardar Cambios", type="primary", key=f"seg_save_{ot_seleccionada['id']}"):
+            try:
+                datos_actualizar = {}
+                if nuevo_estado != ot_seleccionada.get("estado"):
+                    datos_actualizar["estado"] = nuevo_estado
+                if nueva_etapa != ot_seleccionada.get("etapa"):
+                    datos_actualizar["etapa"] = nueva_etapa
+                if nueva_fecha_prevista and nueva_fecha_prevista.isoformat() != (fp_actual or "")[:10]:
+                    datos_actualizar["fecha_entrega_prevista"] = nueva_fecha_prevista.isoformat()
+                if nueva_fecha_real and nueva_fecha_real.isoformat() != (fr_actual or "")[:10]:
+                    datos_actualizar["fecha_entrega_real"] = nueva_fecha_real.isoformat()
+                elif nuevo_estado == "ENTREGADO" and ot_seleccionada.get("estado") != "ENTREGADO" and not nueva_fecha_real:
+                    datos_actualizar["fecha_entrega_real"] = date.today().isoformat()
+                he_actual = float(ot_seleccionada.get("horas_empleadas") or 0)
+                if nuevas_horas != he_actual:
+                    datos_actualizar["horas_empleadas"] = nuevas_horas
+
+                if datos_actualizar:
+                    resp = httpx.patch(
+                        f"{url_api}/seguimiento/{ot_seleccionada['id']}",
+                        json=datos_actualizar,
+                        timeout=10,
+                    )
+                    resp.raise_for_status()
+                    st.success(f"✅ OT {ot_seleccionada['id']} actualizada correctamente.")
+                    st.rerun()
+                else:
+                    st.info("No hay cambios para guardar.")
+            except Exception as e:
+                st.error(f"❌ Error al guardar: {str(e)}")
 
 
 # --- Ejecutar página ---

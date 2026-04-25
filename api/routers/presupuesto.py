@@ -17,12 +17,20 @@ from api.db.supabase import (
     actualizar_ot,
     obtener_categorias_mano_obra,
     obtener_insumos_consumibles,
+    actualizar_categoria_mo,
+    actualizar_insumo,
+    crear_categoria_mo,
+    crear_insumo_consumible,
     subir_archivo_storage,
 )
 from api.models.modelos import (
     PresupuestoCrear,
     PresupuestoActualizar,
     RespuestaClientePresupuesto,
+    CategoriaManoObraActualizar,
+    InsumoActualizar,
+    CategoriaManoObraCrear,
+    InsumoConsumibleCrear,
 )
 from api.services.pdf_service import generar_pdf_presupuesto
 
@@ -304,6 +312,21 @@ def listar_categorias_mo():
         raise HTTPException(status_code=500, detail=f"Error al obtener categorías: {str(e)}")
 
 
+@router.patch("/catalogos/mano-obra/{categoria_id}")
+def actualizar_categoria_mano_obra(categoria_id: int, datos: CategoriaManoObraActualizar):
+    """Actualiza el costo/hora o descripción de una categoría de mano de obra."""
+    try:
+        campos = {k: v for k, v in datos.model_dump().items() if v is not None}
+        if not campos:
+            raise HTTPException(status_code=400, detail="No se proporcionaron campos para actualizar")
+        resultado = actualizar_categoria_mo(categoria_id, campos)
+        return {"mensaje": f"Categoría {categoria_id} actualizada", "categoria": resultado}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al actualizar categoría: {str(e)}")
+
+
 @router.get("/catalogos/insumos")
 def listar_insumos(busqueda: str = None):
     """Lista insumos/consumibles, con búsqueda opcional por denominación."""
@@ -312,3 +335,38 @@ def listar_insumos(busqueda: str = None):
         return {"insumos": insumos}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener insumos: {str(e)}")
+
+
+@router.patch("/catalogos/insumos/{insumo_id}")
+def actualizar_insumo_catalogo(insumo_id: int, datos: InsumoActualizar):
+    """Actualiza precio u otros campos de un insumo/consumible."""
+    try:
+        campos = {k: v for k, v in datos.model_dump().items() if v is not None}
+        if not campos:
+            raise HTTPException(status_code=400, detail="No se proporcionaron campos para actualizar")
+        resultado = actualizar_insumo(insumo_id, campos)
+        return {"mensaje": f"Insumo {insumo_id} actualizado", "insumo": resultado}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al actualizar insumo: {str(e)}")
+
+
+@router.post("/catalogos/mano-obra")
+def crear_categoria_mano_obra(datos: CategoriaManoObraCrear):
+    """Crea una nueva categoría de mano de obra en el catálogo."""
+    try:
+        resultado = crear_categoria_mo(datos.model_dump())
+        return {"mensaje": "Categoría creada", "categoria": resultado}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al crear categoría: {str(e)}")
+
+
+@router.post("/catalogos/insumos")
+def crear_insumo_catalogo(datos: InsumoConsumibleCrear):
+    """Crea un nuevo insumo/consumible en el catálogo."""
+    try:
+        resultado = crear_insumo_consumible(datos.model_dump())
+        return {"mensaje": "Insumo creado", "insumo": resultado}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al crear insumo: {str(e)}")

@@ -270,6 +270,46 @@ def obtener_categorias_mano_obra() -> list[dict]:
     return respuesta.data or []
 
 
+def actualizar_categoria_mo(categoria_id: int, datos: dict) -> dict:
+    """Actualiza campos de una categoría de mano de obra."""
+    cliente = obtener_cliente()
+    datos["updated_at"] = datetime.now().isoformat()
+    respuesta = (
+        cliente.table("categorias_mano_obra")
+        .update(datos)
+        .eq("id", categoria_id)
+        .execute()
+    )
+    return respuesta.data[0] if respuesta.data else {}
+
+
+def actualizar_insumo(insumo_id: int, datos: dict) -> dict:
+    """Actualiza campos de un insumo/consumible."""
+    cliente = obtener_cliente()
+    datos["updated_at"] = datetime.now().isoformat()
+    respuesta = (
+        cliente.table("insumos_consumibles")
+        .update(datos)
+        .eq("id", insumo_id)
+        .execute()
+    )
+    return respuesta.data[0] if respuesta.data else {}
+
+
+def crear_categoria_mo(datos: dict) -> dict:
+    """Crea una nueva categoría de mano de obra."""
+    cliente = obtener_cliente()
+    respuesta = cliente.table("categorias_mano_obra").insert(datos).execute()
+    return respuesta.data[0]
+
+
+def crear_insumo_consumible(datos: dict) -> dict:
+    """Crea un nuevo insumo/consumible."""
+    cliente = obtener_cliente()
+    respuesta = cliente.table("insumos_consumibles").insert(datos).execute()
+    return respuesta.data[0]
+
+
 def obtener_insumos_consumibles(busqueda: Optional[str] = None) -> list[dict]:
     """
     Retorna insumos/consumibles, opcionalmente filtrados por búsqueda.

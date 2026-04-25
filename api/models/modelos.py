@@ -239,9 +239,38 @@ class CategoriaManoObra(BaseModel):
     costo_hora: float
 
 
+class CategoriaManoObraActualizar(BaseModel):
+    """Modelo para actualizar una categoría de mano de obra."""
+    descripcion: Optional[str] = None
+    costo_hora: Optional[float] = None
+
+
 class InsumoConsumible(BaseModel):
     """Insumo o consumible."""
     id: int
+    denominacion: str
+    proveedor: Optional[str] = None
+    unidad: Optional[str] = None
+    costo_unitario: float
+
+
+class InsumoActualizar(BaseModel):
+    """Modelo para actualizar un insumo/consumible."""
+    denominacion: Optional[str] = None
+    proveedor: Optional[str] = None
+    unidad: Optional[str] = None
+    costo_unitario: Optional[float] = None
+
+
+class CategoriaManoObraCrear(BaseModel):
+    """Modelo para crear una nueva categoría de mano de obra."""
+    categoria: str
+    descripcion: Optional[str] = None
+    costo_hora: float
+
+
+class InsumoConsumibleCrear(BaseModel):
+    """Modelo para crear un nuevo insumo/consumible."""
     denominacion: str
     proveedor: Optional[str] = None
     unidad: Optional[str] = None
