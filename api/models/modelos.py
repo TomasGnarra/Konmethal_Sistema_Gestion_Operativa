@@ -84,6 +84,10 @@ class OrdenTrabajoActualizar(BaseModel):
     fecha_inicio_prevista: Optional[str] = None
     fecha_entrega_prevista: Optional[str] = None
     fecha_entrega_real: Optional[str] = None
+    fecha_diagnostico: Optional[str] = None
+    fecha_envio_presupuesto: Optional[str] = None
+    fecha_respuesta_cliente: Optional[str] = None
+    fecha_inicio_real: Optional[str] = None
     horas_cotizadas: Optional[float] = None
     horas_empleadas: Optional[float] = None
     monto_cotizacion: Optional[float] = None
@@ -101,6 +105,10 @@ class OrdenTrabajo(BaseModel):
     fecha_inicio_prevista: Optional[str] = None
     fecha_entrega_prevista: Optional[str] = None
     fecha_entrega_real: Optional[str] = None
+    fecha_diagnostico: Optional[str] = None
+    fecha_envio_presupuesto: Optional[str] = None
+    fecha_respuesta_cliente: Optional[str] = None
+    fecha_inicio_real: Optional[str] = None
     horas_cotizadas: Optional[float] = None
     horas_empleadas: Optional[float] = None
     monto_cotizacion: Optional[float] = None
@@ -186,6 +194,9 @@ class PresupuestoActualizar(BaseModel):
     total_costo: Optional[float] = None
     total_venta: Optional[float] = None
     estado: Optional[str] = None
+    canal_comunicacion: Optional[str] = None
+    motivo_rechazo: Optional[str] = None
+    notas_respuesta: Optional[str] = None
 
 
 class Presupuesto(BaseModel):
@@ -201,8 +212,19 @@ class Presupuesto(BaseModel):
     total_costo: Optional[float] = 0.0
     total_venta: Optional[float] = 0.0
     pdf_url: Optional[str] = None
+    canal_comunicacion: Optional[str] = None
+    motivo_rechazo: Optional[str] = None
+    notas_respuesta: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+
+
+class RespuestaClientePresupuesto(BaseModel):
+    """Modelo para registrar la respuesta del cliente a un presupuesto."""
+    aceptado: bool
+    canal_comunicacion: str  # whatsapp | email | presencial | telefono
+    motivo_rechazo: Optional[str] = None  # obligatorio si aceptado=False
+    notas_respuesta: Optional[str] = None
 
 
 # =====================================================================
@@ -242,6 +264,10 @@ class OTConDetalle(BaseModel):
     fecha_inicio_prevista: Optional[str] = None
     fecha_entrega_prevista: Optional[str] = None
     fecha_entrega_real: Optional[str] = None
+    fecha_diagnostico: Optional[str] = None
+    fecha_envio_presupuesto: Optional[str] = None
+    fecha_respuesta_cliente: Optional[str] = None
+    fecha_inicio_real: Optional[str] = None
     horas_cotizadas: Optional[float] = None
     horas_empleadas: Optional[float] = None
     monto_cotizacion: Optional[float] = None

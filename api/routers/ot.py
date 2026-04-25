@@ -155,9 +155,13 @@ def crear_diagnostico_tecnico(ot_id: str, datos: DiagnosticoCrear):
         datos_diagnostico = datos.model_dump()
         datos_diagnostico["ot_id"] = ot_id
         diagnostico = crear_diagnostico(datos_diagnostico)
-        
-        # Actualizar estado de la OT
-        actualizar_ot(ot_id, {"estado": "EN_PROCESO", "etapa": "Cotizando"})
+
+        # Actualizar estado de la OT y registrar timestamp del diagnóstico
+        actualizar_ot(ot_id, {
+            "estado": "EN_PROCESO",
+            "etapa": "Cotizando",
+            "fecha_diagnostico": datetime.now().isoformat()
+        })
         
         return {
             "mensaje": f"Diagnóstico creado para OT {ot_id}",

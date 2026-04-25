@@ -1,0 +1,202 @@
+ 
+FORMULARIO  DIAGNÓSTICO  TÉCNICO  
+Plazo  de  ejecución:  24  -  48  hs.  
+ 
+1.  CAPACIDAD  OPERATIVA  Y  FACTIBILIDAD  
+●  Dimensiones  generales:  ____________________________________________  ●  Peso:  _____________  kg.  ●  Factibilidad  en  Planta:  o  ¿Capacidad  de  máquina  (volteo,  entre  puntas,  mesa,  etc.)?  ☐  Sí  ☐  No  o  ¿Se  puede  descomponer-desarmar?  ☐  Sí  ☐  No  ●  Antecedentes:  ¿Se  realizó  un  trabajo  igual  o  similar  anteriormente?  ☐  No  ☐  Sí  
+(OT/Año/Cliente:
+ 
+__________
+ 
+/
+ 
+_______
+ 
+/
+ 
+_____________________________)
+ 
+ 
+2.  RELEVAMIENTO  GEOMÉTRICO  Y  DIMENSIONAL  
+Transcribir  medidas  críticas  en  el  croquis  de  "Planilla  de  Defectos".  
+●  Control  de  forma:  o  Rectitud:  __________   Planitud:  _________   Excentricidad:  __________  o  Perpendicularidad:  __________   Alabeo/Torsión:  __________________  ●  Desgaste  local:  ☐  Ovalización  ☐  Conicidad  ☐  Pérdida  de  material  (mm):  
+________________________________________________________________
+ 
+ 
+3.  INSPECCIÓN  VISUAL  Y  ESTADO  DE  SUPERFICIE  
+●  Evidencias  detectadas:  ☐  Fisuras  visibles  ☐  Sobrecalentamiento  (cambio  de  
+color)
+ 
+☐
+ 
+Material
+ 
+adherido
+ 
+☐
+ 
+Porosidad/Soldadura
+ 
+previa
+ 
+☐
+ 
+Deformación
+ 
+plástica
+ 
+☐
+ 
+Desprendimiento
+ 
+de
+ 
+capas
+ ●  Limpieza  previa:  ¿Requiere  arenado/desengrase  profundo  para  ver  fallas?  ☐  Sí  
+☐
+ 
+No
+ 
+   
+4.  ANÁLISIS  DE  LA  FALLA  (MODO  DE  ROTURA)  
+\\192.168.12.10\Oficina  Tecnica\PROCEDIMIENTOS\FORMULARIO  Diagnóstico  Técnico.docx     Página  1  de  3   
+
+ Determine  la  causa  probable  según  la  morfología  del  daño:  
+●  Esfuerzo  dominante:  ☐  Tracción  ☐  Compresión  ☐  Flexión  ☐  Torsión  ☐  
+Impacto
+ ●  Naturaleza  de  la  falla:  ☐  Fatiga  (marcas  de  progresión)  ☐  Rotura  Frágil  (sin  
+deformación
+ 
+previa)
+ 
+☐
+ 
+Impacto
+ 
+(marcas
+ 
+de
+ 
+golpe
+ 
+o
+ 
+carga
+ 
+súbita)
+ 
+☐
+ 
+Concentración
+ 
+de
+ 
+tensiones
+ 
+(cambios
+ 
+bruscos
+ 
+de
+ 
+sección,
+ 
+chaveteros)
+ 
+☐
+ 
+Falla
+ 
+Térmica
+ 
+(ablandamiento
+ 
+o
+ 
+tensiones
+ 
+por
+ 
+calor)
+ 
+☐
+ 
+Corrosión/Erosión
+ 
+(picaduras
+ 
+o
+ 
+cavitación)
+ 
+ 
+5.  ESPECIFICACIONES  PARA  EL  PROCESO  DE  RECUPERACIÓN  
+●  Dureza  Inicial:  _________  (HB  /  HRC)  Dureza  Final  requerida:  _________  ●  Material  base:  ☐  Análisis  químico  ☐  Chispeo  ☐  Metalografía   ●  Necesidad  de  Ensayos  No  Destructivos  (END):  ☐  Líquidos  Penetrantes  ☐  
+Partículas
+ 
+Magnetizables
+ 
+☐
+ 
+Ultrasonido
+ ●  Tratamiento  Térmico:  ¿Requiere  precalentamiento  o  alivio  de  tensiones?  ☐  Sí  
+☐
+ 
+No
+ ●  Tipo  de  Aporte/Material  sugerido:  __________________________________  ●  Requiere  procedimiento  de  soldadura:  ☐  Sí  ☐  No  ☐  Temp  precalentamiento  
+ 
+6.  REGISTRO  FOTOGRÁFICO  DE  INGENIERÍA  
+●  ☐  Foto  1:  Pieza  completa  con  escala  (regla  o  referencia).  ●  ☐  Foto  2:  Detalle  de  la  zona  de  falla  con  luz  lateral  (para  resaltar  grietas).  ●  ☐  Foto  3:  Evidencia  de  reparaciones  anteriores  o  soldaduras  deficientes.  
+ 
+7.  CONCLUSIÓN  PRELIMINAR  
+☐  Reparable:  El  equipo  vuelve  a  sus  condiciones  originales.   
+☐  Reparable  con  condiciones:  Requiere  cambio  de  diseño  o  material.   
+☐  No  Reparable  /  Riesgoso:  Fatiga  total  del  material  base  o  costo  excesivo.  
+\\192.168.12.10\Oficina  Tecnica\PROCEDIMIENTOS\FORMULARIO  Diagnóstico  Técnico.docx     Página  2  de  3   
+
+ Firma  del  Técnico/Ingeniero  responsable:  ________________________________  
+ 
+💡  Notas  Adicionales  para  Konmethal:  
+1.  Dureza:  Es  vital  medirla  antes  de  decidir  el  método  de  soldadura  para  evitar  
+fisuras
+ 
+por
+ 
+falta
+ 
+de
+ 
+precalentamiento.
+ 2.  Ensayos  No  Destructivos:  En  piezas  de  gran  porte,  siempre  es  mejor  proponer  
+Líquidos
+ 
+Penetrantes
+ 
+post-limpieza
+ 
+para
+ 
+no
+ 
+"tapar"
+ 
+una
+ 
+fisura
+ 
+con
+ 
+el
+ 
+nuevo
+ 
+aporte.
+ 3.  Trazabilidad:  Este  formulario  debe  estar  grapado  a  la  Hoja  de  Vida  digital  o  
+física
+ 
+del
+ 
+componente.
+ 
+ 
+\\192.168.12.10\Oficina  Tecnica\PROCEDIMIENTOS\FORMULARIO  Diagnóstico  Técnico.docx     Página  3  de  3   

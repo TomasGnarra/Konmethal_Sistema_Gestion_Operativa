@@ -27,11 +27,15 @@ CREATE TABLE IF NOT EXISTS ordenes_trabajo (
     fecha_ingreso DATE DEFAULT CURRENT_DATE,
     maquina TEXT,
     descripcion_trabajo TEXT,
-    estado TEXT DEFAULT 'PENDIENTE' CHECK (estado IN ('PENDIENTE', 'EN_PROCESO', 'DEMORADO', 'ENTREGADO')),
+    estado TEXT DEFAULT 'PENDIENTE' CHECK (estado IN ('PENDIENTE', 'EN_PROCESO', 'ESPERANDO_APROBACION', 'DEMORADO', 'ENTREGADO', 'CANCELADO')),
     etapa TEXT CHECK (etapa IN ('Cotizando', 'Cotizado', 'En Proceso', 'Terminado', 'Facturado')),
     fecha_inicio_prevista DATE,
     fecha_entrega_prevista DATE,
     fecha_entrega_real DATE,
+    fecha_diagnostico TIMESTAMPTZ,           -- cuándo se completó el diagnóstico
+    fecha_envio_presupuesto TIMESTAMPTZ,     -- cuándo se envió el PDF al cliente
+    fecha_respuesta_cliente TIMESTAMPTZ,     -- cuándo respondió el cliente
+    fecha_inicio_real TIMESTAMPTZ,           -- cuándo arrancó el trabajo real
     horas_cotizadas NUMERIC(10,2),
     horas_empleadas NUMERIC(10,2),
     monto_cotizacion NUMERIC(12,2),
@@ -86,6 +90,9 @@ CREATE TABLE IF NOT EXISTS presupuesto (
     total_costo NUMERIC(12,2) DEFAULT 0,
     total_venta NUMERIC(12,2) DEFAULT 0,
     pdf_url TEXT,
+    canal_comunicacion TEXT CHECK (canal_comunicacion IS NULL OR canal_comunicacion IN ('whatsapp', 'email', 'presencial', 'telefono')),
+    motivo_rechazo TEXT,
+    notas_respuesta TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -120,6 +127,10 @@ CREATE INDEX IF NOT EXISTS idx_ot_fecha ON ordenes_trabajo(fecha_ingreso DESC);
 CREATE INDEX IF NOT EXISTS idx_recepcion_ot ON recepcion_tecnica(ot_id);
 CREATE INDEX IF NOT EXISTS idx_diagnostico_ot ON diagnostico_tecnico(ot_id);
 CREATE INDEX IF NOT EXISTS idx_presupuesto_ot ON presupuesto(ot_id);
+-- Optimización para consultas de "esperando aprobación hace X días"
+CREATE INDEX IF NOT EXISTS idx_ot_esperando_aprobacion
+    ON ordenes_trabajo(estado, fecha_envio_presupuesto)
+    WHERE estado = 'ESPERANDO_APROBACION';
 
 -- -------------------------------------------------------------------
 -- RLS (Row Level Security) — deshabilitado para Fase 1

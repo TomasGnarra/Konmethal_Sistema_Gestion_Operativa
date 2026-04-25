@@ -7,6 +7,7 @@ Configura la página, sidebar con navegación y muestra un resumen general.
 import streamlit as st
 import httpx
 import pandas as pd
+from datetime import datetime, date
 
 from app.utils.supabase_client import obtener_url_api
 from app.utils.helpers import formatear_fecha, calcular_atraso
@@ -90,26 +91,44 @@ col1, col2, col3, col4 = st.columns(4)
 
 total_activas = len(ots)
 pendientes = sum(1 for ot in ots if ot.get("estado") == "PENDIENTE")
-en_proceso = sum(1 for ot in ots if ot.get("estado") == "EN_PROCESO")
-atrasadas = sum(
-    1 for ot in ots
-    if calcular_atraso(ot.get("fecha_entrega_prevista")) > 0
-    and ot.get("estado") != "ENTREGADO"
-)
+esperando_aprobacion = sum(1 for ot in ots if ot.get("estado") == "ESPERANDO_APROBACION")
+en_ejecucion = sum(1 for ot in ots if ot.get("estado") == "EN_PROCESO")
 demoradas_estado = sum(1 for ot in ots if ot.get("estado") == "DEMORADO")
 
 # Metric 1: OTs Activas
 col1.metric("🔧 OTs Activas", total_activas)
 
-# Metric 2: Pendientes de Diagnóstico
-col2.metric("⏳ Pendtes. Diagnóstico", pendientes)
+# Metric 2: Esperando Aprobación del Cliente
+col2.metric("⏳ Esperando Aprobación", esperando_aprobacion)
 
-# Metric 3: Presupuestos Enviados (Etapa = Cotizado o Estado = ENVIADO, usando etapa 'Cotizado' por ahora)
-presupuestos_enviados = sum(1 for ot in ots if (ot.get("presupuesto") or {}).get("estado") == "ENVIADO")
-col3.metric("📤 Presup. Enviados", presupuestos_enviados)
+# Metric 3: En Ejecución
+col3.metric("🔨 En Ejecución", en_ejecucion)
 
 # Metric 4: Demoradas
 col4.metric("🔴 Demoradas", demoradas_estado, delta=f"-{demoradas_estado}" if demoradas_estado > 0 else None, delta_color="inverse")
+
+# Alerta: OTs esperando aprobación hace más de 3 días
+if esperando_aprobacion > 0:
+    ots_esperando_hace_tiempo = []
+    for ot in ots:
+        if ot.get("estado") == "ESPERANDO_APROBACION" and ot.get("fecha_envio_presupuesto"):
+            try:
+                fecha_envio = datetime.fromisoformat(ot["fecha_envio_presupuesto"].replace('Z', '+00:00'))
+                dias_esperando = (datetime.now(fecha_envio.tzinfo) - fecha_envio).days
+                if dias_esperando > 3:
+                    ots_esperando_hace_tiempo.append({
+                        "id": ot["id"],
+                        "dias": dias_esperando,
+                        "cliente": ot.get("cliente", {}).get("nombre", "-") if ot.get("cliente") else "-"
+                    })
+            except (ValueError, TypeError):
+                pass
+
+    if ots_esperando_hace_tiempo:
+        st.warning(
+            f"⚠️ **{len(ots_esperando_hace_tiempo)} OT(s) esperando respuesta del cliente hace más de 3 días:**\n\n"
+            + "\n".join([f"- **{ot['id']}** ({ot['cliente']}) — {ot['dias']} días" for ot in ots_esperando_hace_tiempo])
+        )
 
 st.divider()
 

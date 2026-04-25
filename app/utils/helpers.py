@@ -122,8 +122,179 @@ def formatear_moneda(monto: Optional[float]) -> str:
 
 
 # Constantes del sistema
-ESTADOS_OT = ["PENDIENTE", "EN_PROCESO", "DEMORADO", "ENTREGADO"]
+ESTADOS_OT = ["PENDIENTE", "EN_PROCESO", "ESPERANDO_APROBACION", "DEMORADO", "ENTREGADO", "CANCELADO"]
 ETAPAS_OT = ["Cotizando", "Cotizado", "En Proceso", "Terminado", "Facturado"]
 ESTADOS_PRESUPUESTO = ["BORRADOR", "APROBADO_INTERNO", "ENVIADO", "ACEPTADO", "RECHAZADO"]
 TIPOS_FALLA = ["desgaste", "rotura", "corrosion", "otro"]
 CONCLUSIONES_DIAGNOSTICO = ["REPARABLE", "CON_CONDICIONES", "NO_REPARABLE"]
+
+
+def construir_timeline(ot: dict, presupuesto: Optional[dict] = None) -> list[dict]:
+    """
+    Construye un timeline de hitos de una OT basado en las fechas registradas.
+
+    Args:
+        ot: Diccionario con los datos de la OT
+        presupuesto: Diccionario opcional con los datos del presupuesto
+
+    Returns:
+        Lista de eventos ordenados cronológicamente, cada uno con:
+        - titulo: str
+        - fecha: str (ISO format)
+        - completado: bool
+        - icono: str
+        - color: str
+    """
+    eventos = []
+
+    # 1. Recepcionado (siempre presente)
+    if ot.get("fecha_ingreso"):
+        eventos.append({
+            "titulo": "Recepcionado",
+            "fecha": ot["fecha_ingreso"],
+            "completado": True,
+            "icono": "📥",
+            "color": "#27AE60"
+        })
+
+    # 2. Diagnóstico completado
+    if ot.get("fecha_diagnostico"):
+        eventos.append({
+            "titulo": "Diagnóstico completado",
+            "fecha": ot["fecha_diagnostico"],
+            "completado": True,
+            "icono": "🔍",
+            "color": "#27AE60"
+        })
+
+    # 3. Presupuesto enviado
+    if ot.get("fecha_envio_presupuesto"):
+        eventos.append({
+            "titulo": "Presupuesto enviado",
+            "fecha": ot["fecha_envio_presupuesto"],
+            "completado": True,
+            "icono": "📄",
+            "color": "#27AE60"
+        })
+
+    # 4. Respuesta del cliente
+    if ot.get("fecha_respuesta_cliente"):
+        canal = presupuesto.get("canal_comunicacion", "").capitalize() if presupuesto else ""
+        canal_str = f" ({canal})" if canal else ""
+
+        # Determinar si fue aceptado o rechazado
+        if ot.get("estado") == "CANCELADO":
+            titulo = f"Cliente rechazó{canal_str}"
+            icono = "❌"
+            color = "#E74C3C"
+        else:
+            titulo = f"Cliente aceptó{canal_str}"
+            icono = "✅"
+            color = "#27AE60"
+
+        eventos.append({
+            "titulo": titulo,
+            "fecha": ot["fecha_respuesta_cliente"],
+            "completado": True,
+            "icono": icono,
+            "color": color
+        })
+
+    # 5. Trabajo iniciado
+    if ot.get("fecha_inicio_real"):
+        eventos.append({
+            "titulo": "Trabajo iniciado",
+            "fecha": ot["fecha_inicio_real"],
+            "completado": True,
+            "icono": "🔧",
+            "color": "#27AE60"
+        })
+
+    # 6. Entregado
+    if ot.get("fecha_entrega_real"):
+        eventos.append({
+            "titulo": "Entregado",
+            "fecha": ot["fecha_entrega_real"],
+            "completado": True,
+            "icono": "✅",
+            "color": "#27AE60"
+        })
+    elif ot.get("estado") in ["EN_PROCESO", "ESPERANDO_APROBACION", "DEMORADO"]:
+        # Mostrar como pendiente si no está entregado ni cancelado
+        eventos.append({
+            "titulo": "Entrega pendiente",
+            "fecha": ot.get("fecha_entrega_prevista", ""),
+            "completado": False,
+            "icono": "⏳",
+            "color": "#95A5A6"
+        })
+
+    # Ordenar por fecha
+    eventos_con_fecha = [e for e in eventos if e["fecha"]]
+    eventos_sin_fecha = [e for e in eventos if not e["fecha"]]
+
+    eventos_ordenados = sorted(eventos_con_fecha, key=lambda x: x["fecha"])
+
+    return eventos_ordenados + eventos_sin_fecha
+
+
+def obtener_info_estado_presupuesto(estado):
+    """
+    Retorna metadata sobre un estado de presupuesto.
+
+    Args:
+        estado: Estado del presupuesto (None si no existe)
+
+    Returns:
+        dict con:
+        - descripcion: str
+        - acciones_disponibles: list[str]
+        - puede_editar: bool
+        - color: str (hex)
+        - icono: str (emoji)
+    """
+    info = {
+        None: {
+            "descripcion": "Sin presupuesto creado",
+            "acciones_disponibles": ["crear"],
+            "puede_editar": True,
+            "color": "#95A5A6",
+            "icono": "📝"
+        },
+        "BORRADOR": {
+            "descripcion": "Presupuesto en elaboración (interno)",
+            "acciones_disponibles": ["editar", "aprobar", "eliminar"],
+            "puede_editar": True,
+            "color": "#F39C12",
+            "icono": "📄"
+        },
+        "APROBADO_INTERNO": {
+            "descripcion": "Aprobado internamente, listo para enviar",
+            "acciones_disponibles": ["enviar_pdf", "volver_borrador"],
+            "puede_editar": False,
+            "color": "#3498DB",
+            "icono": "✅"
+        },
+        "ENVIADO": {
+            "descripcion": "PDF enviado al cliente, esperando respuesta",
+            "acciones_disponibles": ["registrar_respuesta", "ver_pdf"],
+            "puede_editar": False,
+            "color": "#9B59B6",
+            "icono": "📤"
+        },
+        "ACEPTADO": {
+            "descripcion": "Cliente aceptó el presupuesto",
+            "acciones_disponibles": ["ver_pdf", "ver_respuesta"],
+            "puede_editar": False,
+            "color": "#27AE60",
+            "icono": "✅"
+        },
+        "RECHAZADO": {
+            "descripcion": "Cliente rechazó el presupuesto",
+            "acciones_disponibles": ["ver_pdf", "ver_motivo"],
+            "puede_editar": False,
+            "color": "#E74C3C",
+            "icono": "❌"
+        }
+    }
+    return info.get(estado, info[None])

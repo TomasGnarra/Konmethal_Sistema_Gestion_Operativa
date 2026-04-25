@@ -1,7 +1,7 @@
 """
-Módulo 03 — Presupuesto (Panel General).
-Vista de tabla con todas las OTs y sus presupuestos.
-Permite ver, crear y editar presupuestos desde un panel centralizado.
+Módulo 03 — Presupuesto (Vista Unificada).
+Interfaz consistente para ver, crear y editar presupuestos independientemente del estado.
+Flujo de aprobación: BORRADOR → APROBADO_INTERNO → ENVIADO → ACEPTADO/RECHAZADO
 """
 
 import streamlit as st
@@ -77,14 +77,46 @@ def renderizar_flujo_estados(estado_actual):
             )
 
 
-def renderizar_resumen_economico(presupuesto, items_mo, items_mat, items_serv, otros_gastos, pct_ganancia):
-    """Renderiza el panel de resumen económico."""
+def renderizar_header_ot(ot_data, estado_pres):
+    """Renderiza el header con info de la OT y estados."""
+    cliente_nombre = ot_data.get('cliente', {}).get('nombre', '-') if ot_data.get('cliente') else '-'
+
+    st.markdown(f"### 📋 Presupuesto — {ot_data.get('id', '-')}")
+    st.markdown(f"**Cliente:** {cliente_nombre} | **Equipo:** {ot_data.get('maquina', '-')}")
+
+    col_ot, col_pres = st.columns(2)
+    with col_ot:
+        st.markdown(f"**Estado OT:** {badge_estado(ot_data.get('estado', '-'))}", unsafe_allow_html=True)
+    with col_pres:
+        info_estado = obtener_info_estado_presupuesto(estado_pres)
+        st.markdown(
+            f"**Estado Presupuesto:** <span style='background-color: {info_estado['color']}; "
+            f"color: white; padding: 4px 12px; border-radius: 12px; font-weight: bold;'>"
+            f"{info_estado['icono']} {estado_pres or 'SIN PRESUPUESTO'}</span>",
+            unsafe_allow_html=True
+        )
+        st.caption(info_estado['descripcion'])
+
+
+def renderizar_resumen_economico(presupuesto, ot_id):
+    """Renderiza el panel de resumen económico (siempre visible)."""
     st.markdown("### 💰 Resumen Económico")
 
     if presupuesto:
+        items_mo = presupuesto.get("items_mano_obra", [])
+        items_mat = presupuesto.get("items_materiales", [])
+        items_serv = presupuesto.get("items_servicios", [])
+        otros_gastos = presupuesto.get("otros_gastos", 0.0)
+        pct_ganancia = presupuesto.get("porcentaje_ganancia", 0.0)
         total_costo = presupuesto.get("total_costo", 0.0)
         total_venta = presupuesto.get("total_venta", 0.0)
     else:
+        items_mo = st.session_state.get("items_mo", [])
+        items_mat = st.session_state.get("items_mat", [])
+        items_serv = st.session_state.get("items_serv", [])
+        otros_gastos = st.session_state.get("form_otros_gastos", 0.0)
+        pct_ganancia = st.session_state.get("form_pct_ganancia", 30.0)
+
         total_costo, total_venta = calcular_total_presupuesto(
             items_mo, items_mat, items_serv, otros_gastos, pct_ganancia
         )
@@ -110,24 +142,25 @@ def renderizar_resumen_economico(presupuesto, items_mo, items_mat, items_serv, o
     return total_costo, total_venta
 
 
-def renderizar_acciones_disponibles(estado_pres, presupuesto, ot_id, url_api, tc, tv, items_mo, items_mat, items_serv):
+def renderizar_acciones_disponibles(estado_pres, presupuesto, ot_id, url_api, tc, tv):
     """Renderiza los botones de acción según el estado."""
     st.markdown("### ⚙️ Acciones")
 
     info_estado = obtener_info_estado_presupuesto(estado_pres)
+    acciones = info_estado['acciones_disponibles']
 
     # Guardar Borrador
     if estado_pres in [None, "BORRADOR"]:
-        if st.button("💾 Guardar Borrador", use_container_width=True, key=f"guardar_{ot_id}"):
+        if st.button("💾 Guardar Borrador", use_container_width=True):
             with st.spinner("Guardando..."):
                 try:
                     datos = {
                         "ot_id": ot_id,
-                        "items_mano_obra": items_mo,
-                        "items_materiales": items_mat,
-                        "items_servicios": items_serv,
-                        "otros_gastos": st.session_state.get(f"form_otros_gastos_{ot_id}", 0.0),
-                        "porcentaje_ganancia": st.session_state.get(f"form_pct_ganancia_{ot_id}", 30.0),
+                        "items_mano_obra": st.session_state.items_mo,
+                        "items_materiales": st.session_state.items_mat,
+                        "items_servicios": st.session_state.items_serv,
+                        "otros_gastos": st.session_state.get("form_otros_gastos", 0.0),
+                        "porcentaje_ganancia": st.session_state.get("form_pct_ganancia", 30.0),
                         "total_costo": tc,
                         "total_venta": tv,
                     }
@@ -143,7 +176,7 @@ def renderizar_acciones_disponibles(estado_pres, presupuesto, ot_id, url_api, tc
 
     # Aprobar Internamente
     if estado_pres == "BORRADOR":
-        if st.button("✅ Aprobar Internamente", use_container_width=True, key=f"aprobar_{ot_id}"):
+        if st.button("✅ Aprobar Internamente", use_container_width=True):
             try:
                 httpx.post(f"{url_api}/presupuesto/{presupuesto['id']}/aprobar", timeout=10)
                 st.success("✅ Presupuesto aprobado internamente")
@@ -153,7 +186,7 @@ def renderizar_acciones_disponibles(estado_pres, presupuesto, ot_id, url_api, tc
 
     # Volver a Borrador
     if estado_pres == "APROBADO_INTERNO":
-        if st.button("⬅️ Volver a Borrador", use_container_width=True, key=f"volver_{ot_id}"):
+        if st.button("⬅️ Volver a Borrador", use_container_width=True):
             try:
                 datos = {"estado": "BORRADOR"}
                 httpx.patch(f"{url_api}/presupuesto/{presupuesto['id']}", json=datos, timeout=10)
@@ -164,7 +197,7 @@ def renderizar_acciones_disponibles(estado_pres, presupuesto, ot_id, url_api, tc
 
     # Generar PDF y Enviar
     if estado_pres == "APROBADO_INTERNO":
-        if st.button("📄 Generar PDF y Enviar", type="primary", use_container_width=True, key=f"pdf_{ot_id}"):
+        if st.button("📄 Generar PDF y Enviar", type="primary", use_container_width=True):
             with st.spinner("Generando PDF..."):
                 try:
                     resp = httpx.post(f"{url_api}/presupuesto/{presupuesto['id']}/generar-pdf", params={"ot_id": ot_id}, timeout=30)
@@ -181,6 +214,10 @@ def renderizar_acciones_disponibles(estado_pres, presupuesto, ot_id, url_api, tc
     if presupuesto and presupuesto.get("pdf_url"):
         st.markdown(f"📎 [Descargar PDF]({presupuesto['pdf_url']})", unsafe_allow_html=True)
 
+
+# =============================================================================
+# FUNCIONES DE RENDERIZADO DE TABS
+# =============================================================================
 
 def renderizar_tab_ver_presupuesto(presupuesto, diagnostico_info):
     """Tab 1: Vista de presupuesto en modo lectura."""
@@ -237,7 +274,7 @@ def renderizar_tab_ver_presupuesto(presupuesto, diagnostico_info):
         st.caption("Sin servicios de terceros")
 
 
-def renderizar_tab_editar(presupuesto, categorias_mo, insumos, ot_id, items_mo, items_mat, items_serv):
+def renderizar_tab_editar(presupuesto, categorias_mo, insumos, ot_id):
     """Tab 2: Formulario de edición del presupuesto."""
     st.markdown("#### ✏️ Editar Presupuesto")
 
@@ -247,25 +284,23 @@ def renderizar_tab_editar(presupuesto, categorias_mo, insumos, ot_id, items_mo, 
         with st.container(border=True):
             opciones_cat = {f"{c['categoria']} — {c.get('descripcion', '')} (${c['costo_hora']}/h)": c for c in categorias_mo}
             c1, c2, c3 = st.columns([3, 1, 1])
-            cat_seleccionada = c1.selectbox("Categoría", list(opciones_cat.keys()), key=f"cat_mo_{ot_id}")
-            horas_mo = c2.number_input("Horas", min_value=0.5, value=1.0, step=0.5, key=f"h_mo_{ot_id}")
+            cat_seleccionada = c1.selectbox("Categoría", list(opciones_cat.keys()), key="cat_mo")
+            horas_mo = c2.number_input("Horas", min_value=0.5, value=1.0, step=0.5, key="h_mo")
             c3.write("")
             c3.write("")
-            if c3.button("➕ Agregar", key=f"btn_add_mo_{ot_id}"):
+            if c3.button("➕ Agregar", key="btn_add_mo"):
                 cat = opciones_cat[cat_seleccionada]
-                items_mo.append({
+                st.session_state.items_mo.append({
                     "categoria_id": cat["id"], "categoria": cat["categoria"],
                     "descripcion": cat.get("descripcion", ""), "costo_hora": cat["costo_hora"],
                     "cantidad_horas": horas_mo, "subtotal": round(cat["costo_hora"] * horas_mo, 2),
                 })
-                st.session_state[f"items_mo_{ot_id}"] = items_mo
                 st.rerun()
 
-    for i, item in enumerate(items_mo):
+    for i, item in enumerate(st.session_state.items_mo):
         st.markdown(f"**{item['categoria']}** — {item.get('descripcion', '')} | {item['cantidad_horas']}h × {formatear_moneda(item['costo_hora'])} = **{formatear_moneda(item['subtotal'])}**")
-        if st.button("✕ Quitar", key=f"del_mo_{i}_{ot_id}"):
-            items_mo.pop(i)
-            st.session_state[f"items_mo_{ot_id}"] = items_mo
+        if st.button("✕ Quitar", key=f"del_mo_{i}"):
+            st.session_state.items_mo.pop(i)
             st.rerun()
 
     st.divider()
@@ -274,33 +309,31 @@ def renderizar_tab_editar(presupuesto, categorias_mo, insumos, ot_id, items_mo, 
     st.subheader("🧱 Materiales e Insumos")
     if insumos:
         with st.container(border=True):
-            busqueda = st.text_input("Buscar insumo...", key=f"busq_mat_{ot_id}")
+            busqueda = st.text_input("Buscar insumo...", key="busq_mat")
             insumos_filtrados = [ins for ins in insumos if busqueda.lower() in ins["denominacion"].lower()]
             opciones_ins = {f"{ins['denominacion']} ({ins.get('unidad', '-')}) — ${ins['costo_unitario']}": ins for ins in insumos_filtrados}
 
             c1, c2, c3 = st.columns([3, 1, 1])
             if opciones_ins:
-                ins_seleccionado = c1.selectbox("Material", list(opciones_ins.keys()), key=f"ins_mat_{ot_id}")
-                cantidad_mat = c2.number_input("Cant.", min_value=0.1, value=1.0, step=0.5, key=f"c_mat_{ot_id}")
+                ins_seleccionado = c1.selectbox("Material", list(opciones_ins.keys()), key="ins_mat")
+                cantidad_mat = c2.number_input("Cant.", min_value=0.1, value=1.0, step=0.5, key="c_mat")
                 c3.write("")
                 c3.write("")
-                if c3.button("➕ Agregar", key=f"btn_add_mat_{ot_id}"):
+                if c3.button("➕ Agregar", key="btn_add_mat"):
                     ins = opciones_ins[ins_seleccionado]
-                    items_mat.append({
+                    st.session_state.items_mat.append({
                         "insumo_id": ins["id"], "denominacion": ins["denominacion"],
                         "unidad": ins.get("unidad", "-"), "costo_unitario": ins["costo_unitario"],
                         "cantidad": cantidad_mat, "subtotal": round(ins["costo_unitario"] * cantidad_mat, 2),
                     })
-                    st.session_state[f"items_mat_{ot_id}"] = items_mat
                     st.rerun()
             else:
                 st.warning("No se encontraron resultados")
 
-    for i, item in enumerate(items_mat):
+    for i, item in enumerate(st.session_state.items_mat):
         st.markdown(f"**{item['denominacion']}** | {item['cantidad']} {item.get('unidad', '')} × {formatear_moneda(item['costo_unitario'])} = **{formatear_moneda(item['subtotal'])}**")
-        if st.button("✕ Quitar", key=f"del_mat_{i}_{ot_id}"):
-            items_mat.pop(i)
-            st.session_state[f"items_mat_{ot_id}"] = items_mat
+        if st.button("✕ Quitar", key=f"del_mat_{i}"):
+            st.session_state.items_mat.pop(i)
             st.rerun()
 
     st.divider()
@@ -309,29 +342,27 @@ def renderizar_tab_editar(presupuesto, categorias_mo, insumos, ot_id, items_mo, 
     st.subheader("🤝 Servicios de Terceros")
     with st.container(border=True):
         c1, c2, c3 = st.columns([3, 1, 1])
-        desc_servicio = c1.text_input("Descripción", key=f"d_serv_{ot_id}")
-        monto_servicio = c2.number_input("Monto ($)", min_value=0.0, step=100.0, key=f"m_serv_{ot_id}")
+        desc_servicio = c1.text_input("Descripción", key="d_serv")
+        monto_servicio = c2.number_input("Monto ($)", min_value=0.0, step=100.0, key="m_serv")
         c3.write("")
         c3.write("")
-        if c3.button("➕ Agregar", key=f"btn_add_srv_{ot_id}"):
+        if c3.button("➕ Agregar", key="btn_add_srv"):
             if desc_servicio and monto_servicio > 0:
-                items_serv.append({"descripcion": desc_servicio, "monto": monto_servicio})
-                st.session_state[f"items_serv_{ot_id}"] = items_serv
+                st.session_state.items_serv.append({"descripcion": desc_servicio, "monto": monto_servicio})
                 st.rerun()
 
-    for i, item in enumerate(items_serv):
+    for i, item in enumerate(st.session_state.items_serv):
         st.markdown(f"**{item['descripcion']}** | Monto: **{formatear_moneda(item['monto'])}**")
-        if st.button("✕ Quitar", key=f"del_serv_{i}_{ot_id}"):
-            items_serv.pop(i)
-            st.session_state[f"items_serv_{ot_id}"] = items_serv
+        if st.button("✕ Quitar", key=f"del_serv_{i}"):
+            st.session_state.items_serv.pop(i)
             st.rerun()
 
     st.divider()
 
     # Variables finales
     st.subheader("📊 Variables Finales")
-    st.number_input("Otros gastos (flete, envíos, etc.) $", min_value=0.0, step=100.0, key=f"form_otros_gastos_{ot_id}")
-    st.number_input("% Ganancia", min_value=0.0, max_value=200.0, step=5.0, key=f"form_pct_ganancia_{ot_id}")
+    st.number_input("Otros gastos (flete, envíos, etc.) $", min_value=0.0, step=100.0, key="form_otros_gastos")
+    st.number_input("% Ganancia", min_value=0.0, max_value=200.0, step=5.0, key="form_pct_ganancia")
 
 
 def renderizar_tab_respuesta_cliente(presupuesto, url_api):
@@ -355,7 +386,7 @@ def renderizar_tab_respuesta_cliente(presupuesto, url_api):
         st.markdown("### 📞 Registrar Respuesta del Cliente")
         st.info("El presupuesto fue enviado. Registrá la respuesta del cliente.")
 
-        with st.form(f"form_respuesta_cliente_{presupuesto['id']}"):
+        with st.form("form_respuesta_cliente"):
             col1, col2 = st.columns(2)
 
             with col1:
@@ -430,31 +461,33 @@ def renderizar_tab_respuesta_cliente(presupuesto, url_api):
 # =============================================================================
 
 def mostrar_pagina():
-    """Página principal de presupuesto con vista de panel general."""
+    """Página principal de presupuesto con vista unificada."""
     render_sidebar()
-    st.header("📋 Presupuesto — Panel General")
-    st.markdown("Vista centralizada de todas las OTs con sus presupuestos.")
+    st.header("📋 Presupuesto")
+    st.markdown("Vista unificada para gestionar presupuestos en cualquier estado.")
     st.divider()
 
     url_api = obtener_url_api()
 
-    # Filtros
-    with st.expander("🔍 Filtros de Búsqueda", expanded=True):
-        col_f1, col_f2 = st.columns(2)
+    # Inicializar session_state
+    if "items_mo" not in st.session_state:
+        st.session_state.items_mo = []
+    if "items_mat" not in st.session_state:
+        st.session_state.items_mat = []
+    if "items_serv" not in st.session_state:
+        st.session_state.items_serv = []
+    if "form_otros_gastos" not in st.session_state:
+        st.session_state.form_otros_gastos = 0.0
+    if "form_pct_ganancia" not in st.session_state:
+        st.session_state.form_pct_ganancia = 30.0
 
-        with col_f1:
-            filtro_estado_ot = st.multiselect(
-                "Estados de OT a mostrar",
-                ["PENDIENTE", "EN_PROCESO", "ESPERANDO_APROBACION", "DEMORADO", "ENTREGADO", "CANCELADO"],
-                default=["EN_PROCESO", "ESPERANDO_APROBACION", "DEMORADO"]
-            )
-
-        with col_f2:
-            filtro_estado_pres = st.multiselect(
-                "Estados de Presupuesto",
-                ["SIN_PRESUPUESTO", "BORRADOR", "APROBADO_INTERNO", "ENVIADO", "ACEPTADO", "RECHAZADO"],
-                default=["BORRADOR", "APROBADO_INTERNO", "ENVIADO"]
-            )
+    # Filtros de OT
+    with st.expander("🔍 Filtros de Búsqueda", expanded=False):
+        filtro_estado_ot = st.multiselect(
+            "Estados de OT a mostrar",
+            ["PENDIENTE", "EN_PROCESO", "ESPERANDO_APROBACION", "DEMORADO", "ENTREGADO", "CANCELADO"],
+            default=["EN_PROCESO", "ESPERANDO_APROBACION"]
+        )
 
     # Cargar OTs según filtros
     try:
@@ -471,105 +504,21 @@ def mostrar_pagina():
         st.info("📭 No hay OTs con los filtros seleccionados.")
         return
 
-    # Cargar presupuestos de todas las OTs
-    presupuestos_map = {}
-    for ot in todas_ots:
-        try:
-            resp = httpx.get(f"{url_api}/presupuesto/{ot['id']}", timeout=10)
-            if resp.status_code == 200:
-                presupuestos_map[ot['id']] = resp.json().get("presupuesto")
-        except Exception:
-            pass
-
-    # Filtrar por estado de presupuesto
-    ots_filtradas = []
-    for ot in todas_ots:
-        pres = presupuestos_map.get(ot['id'])
-        estado_pres = pres.get("estado") if pres else "SIN_PRESUPUESTO"
-
-        if estado_pres in filtro_estado_pres or (estado_pres is None and "SIN_PRESUPUESTO" in filtro_estado_pres):
-            ots_filtradas.append(ot)
-
-    if not ots_filtradas:
-        st.info("📭 No hay OTs que cumplan con los filtros de presupuesto seleccionados.")
-        return
-
-    # Tabla resumen
-    st.subheader(f"📊 Resumen de Presupuestos ({len(ots_filtradas)} OTs)")
-
-    # Crear tabla HTML
-    html_table = """<table style="width:100%; border-collapse: collapse; font-size: 0.9em; font-family: sans-serif;">
-<thead>
-<tr style="background-color: #1A3A6B; color: #FFFFFF; text-align: left; border-bottom: 2px solid #ddd;">
-<th style="padding: 12px; font-weight: bold;">NRO OT</th>
-<th style="padding: 12px; font-weight: bold;">CLIENTE</th>
-<th style="padding: 12px; font-weight: bold;">EQUIPO</th>
-<th style="padding: 12px; font-weight: bold;">ESTADO OT</th>
-<th style="padding: 12px; font-weight: bold;">ESTADO PRESUPUESTO</th>
-<th style="padding: 12px; font-weight: bold;">TOTAL VENTA</th>
-</tr>
-</thead>
-<tbody>"""
-
-    for ot in ots_filtradas:
-        nro = ot.get("id", "-")
-        cliente = ot.get("cliente", {}).get("nombre", "-") if ot.get("cliente") else "-"
-        equipo = ot.get("maquina", "-")
-        estado_ot = ot.get("estado", "-")
-
-        pres = presupuestos_map.get(nro)
-        if pres:
-            estado_pres = pres.get("estado", "-")
-            total_venta = formatear_moneda(pres.get("total_venta", 0.0))
-            info_estado = obtener_info_estado_presupuesto(estado_pres)
-            badge_pres = f"<span style='background-color: {info_estado['color']}; color: white; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.85em;'>{info_estado['icono']} {estado_pres}</span>"
-        else:
-            estado_pres = "SIN PRESUPUESTO"
-            total_venta = "-"
-            badge_pres = "<span style='background-color: #95A5A6; color: white; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.85em;'>📝 SIN PRESUPUESTO</span>"
-
-        badge_ot = badge_estado(estado_ot)
-
-        row_html = f"""<tr style="border-bottom: 1px solid #ddd;">
-<td style="padding: 12px; font-weight: 500;">{nro}</td>
-<td style="padding: 12px;">{cliente}</td>
-<td style="padding: 12px;">{equipo}</td>
-<td style="padding: 12px;">{badge_ot}</td>
-<td style="padding: 12px;">{badge_pres}</td>
-<td style="padding: 12px; font-weight: bold;">{total_venta}</td>
-</tr>"""
-        html_table += row_html
-
-    html_table += """</tbody>
-</table>"""
-    st.markdown(html_table, unsafe_allow_html=True)
-
-    st.divider()
-
-    # Selector para ver detalles
-    st.subheader("🔍 Ver/Editar Presupuesto")
-
+    # Selector de OT
     opciones_ot = {}
-    for ot in ots_filtradas:
+    for ot in todas_ots:
         cliente_nombre = ot.get('cliente', {}).get('nombre', 'Sin cliente') if ot.get('cliente') else 'Sin cliente'
-        pres = presupuestos_map.get(ot['id'])
-        estado_pres = pres.get("estado") if pres else "SIN PRES"
-        label = f"{ot['id']} — {cliente_nombre} | {ot.get('maquina', '-')} [{estado_pres}]"
+        label = f"{ot['id']} — {cliente_nombre} | {ot.get('maquina', '-')} [{ot.get('estado', '-')}]"
         opciones_ot[label] = ot["id"]
 
-    ot_seleccionada = st.selectbox(
-        "Seleccionar OT para ver detalles y editar",
-        ["Seleccionar..."] + list(opciones_ot.keys()),
-        index=0
-    )
+    ot_seleccionada = st.selectbox("Seleccionar Orden de Trabajo", [""] + list(opciones_ot.keys()), index=0)
 
-    if ot_seleccionada == "Seleccionar...":
-        st.info("👆 Seleccioná una OT de la lista para ver sus detalles y editar el presupuesto.")
+    if not ot_seleccionada:
         return
 
     ot_id = opciones_ot[ot_seleccionada]
 
-    # Cargar datos completos de la OT seleccionada
+    # Cargar datos de la OT
     try:
         resp_ot = httpx.get(f"{url_api}/ot/{ot_id}", timeout=10)
         resp_ot.raise_for_status()
@@ -580,47 +529,37 @@ def mostrar_pagina():
         st.error(f"Error al cargar datos de la OT: {str(e)}")
         return
 
-    presupuesto_existente = presupuestos_map.get(ot_id)
+    # Cargar presupuesto existente
+    presupuesto_existente = None
+    try:
+        resp = httpx.get(f"{url_api}/presupuesto/{ot_id}", timeout=10)
+        if resp.status_code == 200:
+            presupuesto_existente = resp.json().get("presupuesto")
+    except Exception:
+        pass
+
+    # Cambio de OT: resetear items
+    if st.session_state.get("ot_actual") != ot_id:
+        st.session_state.ot_actual = ot_id
+        if presupuesto_existente:
+            st.session_state.items_mo = presupuesto_existente.get("items_mano_obra", [])
+            st.session_state.items_mat = presupuesto_existente.get("items_materiales", [])
+            st.session_state.items_serv = presupuesto_existente.get("items_servicios", [])
+            st.session_state.form_otros_gastos = presupuesto_existente.get("otros_gastos", 0.0)
+            st.session_state.form_pct_ganancia = presupuesto_existente.get("porcentaje_ganancia", 30.0)
+        else:
+            st.session_state.items_mo = []
+            st.session_state.items_mat = []
+            st.session_state.items_serv = []
+            st.session_state.form_otros_gastos = 0.0
+            st.session_state.form_pct_ganancia = 30.0
+
     estado_pres = presupuesto_existente.get("estado") if presupuesto_existente else None
 
-    # Inicializar items en session_state por OT
-    if f"items_mo_{ot_id}" not in st.session_state:
-        if presupuesto_existente:
-            st.session_state[f"items_mo_{ot_id}"] = presupuesto_existente.get("items_mano_obra", [])
-            st.session_state[f"items_mat_{ot_id}"] = presupuesto_existente.get("items_materiales", [])
-            st.session_state[f"items_serv_{ot_id}"] = presupuesto_existente.get("items_servicios", [])
-            st.session_state[f"form_otros_gastos_{ot_id}"] = presupuesto_existente.get("otros_gastos", 0.0)
-            st.session_state[f"form_pct_ganancia_{ot_id}"] = presupuesto_existente.get("porcentaje_ganancia", 30.0)
-        else:
-            st.session_state[f"items_mo_{ot_id}"] = []
-            st.session_state[f"items_mat_{ot_id}"] = []
-            st.session_state[f"items_serv_{ot_id}"] = []
-            st.session_state[f"form_otros_gastos_{ot_id}"] = 0.0
-            st.session_state[f"form_pct_ganancia_{ot_id}"] = 30.0
+    # Header con info de OT
+    renderizar_header_ot(ot_data, estado_pres)
 
-    items_mo = st.session_state[f"items_mo_{ot_id}"]
-    items_mat = st.session_state[f"items_mat_{ot_id}"]
-    items_serv = st.session_state[f"items_serv_{ot_id}"]
-    otros_gastos = st.session_state.get(f"form_otros_gastos_{ot_id}", 0.0)
-    pct_ganancia = st.session_state.get(f"form_pct_ganancia_{ot_id}", 30.0)
-
-    # Header de OT
-    st.markdown("---")
-    cliente_nombre = ot_data.get('cliente', {}).get('nombre', '-') if ot_data.get('cliente') else '-'
-    st.markdown(f"### 📋 {ot_id} — {cliente_nombre} | {ot_data.get('maquina', '-')}")
-
-    col_ot, col_pres = st.columns(2)
-    with col_ot:
-        st.markdown(f"**Estado OT:** {badge_estado(ot_data.get('estado', '-'))}", unsafe_allow_html=True)
-    with col_pres:
-        info_estado = obtener_info_estado_presupuesto(estado_pres)
-        st.markdown(
-            f"**Estado Presupuesto:** <span style='background-color: {info_estado['color']}; "
-            f"color: white; padding: 4px 12px; border-radius: 12px; font-weight: bold;'>"
-            f"{info_estado['icono']} {estado_pres or 'SIN PRESUPUESTO'}</span>",
-            unsafe_allow_html=True
-        )
-        st.caption(info_estado['descripcion'])
+    st.divider()
 
     # Flujo de estados
     renderizar_flujo_estados(estado_pres)
@@ -631,9 +570,9 @@ def mostrar_pagina():
     col_contenido, col_resumen = st.columns([2, 1], gap="large")
 
     with col_resumen:
-        tc, tv = renderizar_resumen_economico(presupuesto_existente, items_mo, items_mat, items_serv, otros_gastos, pct_ganancia)
+        tc, tv = renderizar_resumen_economico(presupuesto_existente, ot_id)
         st.markdown("<br>", unsafe_allow_html=True)
-        renderizar_acciones_disponibles(estado_pres, presupuesto_existente, ot_id, url_api, tc, tv, items_mo, items_mat, items_serv)
+        renderizar_acciones_disponibles(estado_pres, presupuesto_existente, ot_id, url_api, tc, tv)
 
     with col_contenido:
         # Determinar tabs disponibles
@@ -664,7 +603,7 @@ def mostrar_pagina():
             except Exception:
                 pass
 
-            tab_funciones.append(lambda: renderizar_tab_editar(presupuesto_existente, categorias_mo, insumos, ot_id, items_mo, items_mat, items_serv))
+            tab_funciones.append(lambda: renderizar_tab_editar(presupuesto_existente, categorias_mo, insumos, ot_id))
 
         # Tab Respuesta Cliente
         if estado_pres in ["ENVIADO", "ACEPTADO", "RECHAZADO"]:

@@ -3,6 +3,8 @@ Router de Presupuestos.
 Endpoints para crear, actualizar, aprobar y generar PDF de presupuestos.
 """
 
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
@@ -17,7 +19,11 @@ from api.db.supabase import (
     obtener_insumos_consumibles,
     subir_archivo_storage,
 )
-from api.models.modelos import PresupuestoCrear, PresupuestoActualizar
+from api.models.modelos import (
+    PresupuestoCrear,
+    PresupuestoActualizar,
+    RespuestaClientePresupuesto,
+)
 from api.services.pdf_service import generar_pdf_presupuesto
 
 router = APIRouter(prefix="/presupuesto", tags=["Presupuestos"])
@@ -141,11 +147,15 @@ def generar_pdf_y_enviar(presupuesto_id: int, ot_id: str):
         datos_actualizar = {"estado": "ENVIADO"}
         if pdf_url:
             datos_actualizar["pdf_url"] = pdf_url
-        
+
         actualizar_presupuesto(presupuesto_id, datos_actualizar)
-        
-        # Actualizar etapa de la OT
-        actualizar_ot(ot_id, {"etapa": "Cotizado"})
+
+        # Actualizar OT: cambiar a ESPERANDO_APROBACION y registrar timestamp
+        actualizar_ot(ot_id, {
+            "estado": "ESPERANDO_APROBACION",
+            "etapa": "Cotizado",
+            "fecha_envio_presupuesto": datetime.now().isoformat()
+        })
         
         if pdf_url:
             return {
@@ -177,15 +187,15 @@ def descargar_pdf(presupuesto_id: int, ot_id: str):
         ot = obtener_ot_por_id(ot_id)
         if not ot:
             raise HTTPException(status_code=404, detail=f"OT {ot_id} no encontrada")
-        
+
         cliente = obtener_cliente_por_id(ot["cliente_id"])
         presupuesto = obtener_presupuesto_por_ot(ot_id)
-        
+
         if not presupuesto:
             raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
-        
+
         pdf_bytes = generar_pdf_presupuesto(ot, cliente or {}, presupuesto)
-        
+
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
@@ -197,6 +207,89 @@ def descargar_pdf(presupuesto_id: int, ot_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al generar PDF: {str(e)}")
+
+
+@router.post("/{presupuesto_id}/respuesta-cliente")
+def registrar_respuesta_cliente(presupuesto_id: int, datos: RespuestaClientePresupuesto):
+    """
+    Registra la respuesta del cliente a un presupuesto ENVIADO.
+
+    Si aceptado:
+    - Presupuesto → ACEPTADO
+    - OT → EN_PROCESO, etapa "En Proceso", registra fecha_respuesta_cliente y fecha_inicio_real
+
+    Si rechazado:
+    - Presupuesto → RECHAZADO
+    - OT → CANCELADO, registra fecha_respuesta_cliente
+    """
+    try:
+        # Buscar presupuesto por ID
+        # Nota: necesitamos una forma de obtener presupuesto por ID, no solo por OT
+        # Por ahora, vamos a hacer una query directa en la función
+        from api.db.supabase import supabase
+
+        resp_pres = supabase.table("presupuesto").select("*").eq("id", presupuesto_id).execute()
+
+        if not resp_pres.data or len(resp_pres.data) == 0:
+            raise HTTPException(status_code=404, detail=f"Presupuesto {presupuesto_id} no encontrado")
+
+        presupuesto = resp_pres.data[0]
+        ot_id = presupuesto["ot_id"]
+
+        # Validar que el presupuesto esté en estado ENVIADO
+        if presupuesto["estado"] != "ENVIADO":
+            raise HTTPException(
+                status_code=400,
+                detail=f"El presupuesto debe estar en estado ENVIADO. Estado actual: {presupuesto['estado']}"
+            )
+
+        # Validar que si es rechazo, haya motivo
+        if not datos.aceptado and not datos.motivo_rechazo:
+            raise HTTPException(
+                status_code=400,
+                detail="El motivo de rechazo es obligatorio cuando el cliente rechaza"
+            )
+
+        # Actualizar presupuesto
+        nuevo_estado_presupuesto = "ACEPTADO" if datos.aceptado else "RECHAZADO"
+        actualizar_presupuesto(presupuesto_id, {
+            "estado": nuevo_estado_presupuesto,
+            "canal_comunicacion": datos.canal_comunicacion,
+            "motivo_rechazo": datos.motivo_rechazo,
+            "notas_respuesta": datos.notas_respuesta,
+        })
+
+        # Actualizar OT según la respuesta
+        timestamp_respuesta = datetime.now().isoformat()
+
+        if datos.aceptado:
+            # Cliente aceptó → OT vuelve a EN_PROCESO, arranca trabajo real
+            actualizar_ot(ot_id, {
+                "estado": "EN_PROCESO",
+                "etapa": "En Proceso",
+                "fecha_respuesta_cliente": timestamp_respuesta,
+                "fecha_inicio_real": timestamp_respuesta,
+            })
+            mensaje = f"Cliente ACEPTÓ el presupuesto. OT {ot_id} pasó a EN_PROCESO."
+        else:
+            # Cliente rechazó → OT cancelada
+            actualizar_ot(ot_id, {
+                "estado": "CANCELADO",
+                "fecha_respuesta_cliente": timestamp_respuesta,
+            })
+            mensaje = f"Cliente RECHAZÓ el presupuesto. OT {ot_id} pasó a CANCELADO."
+
+        return {
+            "mensaje": mensaje,
+            "presupuesto_id": presupuesto_id,
+            "ot_id": ot_id,
+            "estado_presupuesto": nuevo_estado_presupuesto,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al registrar respuesta del cliente: {str(e)}")
 
 
 # --- Catálogos ---

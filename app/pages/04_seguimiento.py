@@ -14,6 +14,7 @@ from app.utils.helpers import (
     formatear_fecha,
     formatear_moneda,
     calcular_atraso,
+    construir_timeline,
     ESTADOS_OT,
     ETAPAS_OT,
 )
@@ -135,7 +136,51 @@ def mostrar_pagina():
     if ot_seleccionada:
         st.markdown("### 📋 Detalles de la Orden")
         st.info(f"**Viendo Detalle: {ot_seleccionada['id']} — {ot_seleccionada.get('cliente', {}).get('nombre', '-')}**")
-        
+
+        # --- Timeline de Hitos ---
+        st.markdown("#### 📅 Timeline de la Orden")
+        timeline_eventos = construir_timeline(ot_seleccionada, ot_seleccionada.get("presupuesto"))
+
+        if timeline_eventos:
+            # Renderizar timeline horizontal
+            num_eventos = len(timeline_eventos)
+            cols = st.columns(num_eventos)
+
+            for idx, evento in enumerate(timeline_eventos):
+                with cols[idx]:
+                    # Icono y estado
+                    if evento["completado"]:
+                        st.markdown(
+                            f"<div style='text-align: center; font-size: 2em;'>{evento['icono']}</div>",
+                            unsafe_allow_html=True
+                        )
+                        st.markdown(
+                            f"<div style='text-align: center; font-weight: bold; color: {evento['color']};'>{evento['titulo']}</div>",
+                            unsafe_allow_html=True
+                        )
+                        st.markdown(
+                            f"<div style='text-align: center; font-size: 0.85em; color: #7F8C8D;'>{formatear_fecha(evento['fecha'])}</div>",
+                            unsafe_allow_html=True
+                        )
+                    else:
+                        st.markdown(
+                            f"<div style='text-align: center; font-size: 2em; opacity: 0.4;'>{evento['icono']}</div>",
+                            unsafe_allow_html=True
+                        )
+                        st.markdown(
+                            f"<div style='text-align: center; font-style: italic; color: {evento['color']};'>{evento['titulo']}</div>",
+                            unsafe_allow_html=True
+                        )
+                        if evento.get('fecha'):
+                            st.markdown(
+                                f"<div style='text-align: center; font-size: 0.85em; color: #95A5A6;'>{formatear_fecha(evento['fecha'])}</div>",
+                                unsafe_allow_html=True
+                            )
+        else:
+            st.info("Sin hitos registrados aún.")
+
+        st.divider()
+
         tab_rec, tab_diag, tab_pres, tab_acc = st.tabs([
             "📥 Recepción", "🔍 Diagnóstico", "💰 Presupuesto", "⚙️ Acciones"
         ])
