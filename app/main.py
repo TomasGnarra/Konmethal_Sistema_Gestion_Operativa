@@ -4,6 +4,14 @@ Punto de entrada principal de la aplicación Streamlit.
 Configura la página, sidebar con navegación y muestra un resumen general.
 """
 
+import sys
+from pathlib import Path
+
+# Añadir la raíz del proyecto al sys.path para que Streamlit Cloud encuentre el módulo 'app'
+root_path = str(Path(__file__).resolve().parent.parent)
+if root_path not in sys.path:
+    sys.path.insert(0, root_path)
+
 import streamlit as st
 import httpx
 import pandas as pd
