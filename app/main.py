@@ -302,8 +302,9 @@ with tab_clientes:
     df_clientes = pd.DataFrame(clientes_dict.values())
     if not df_clientes.empty:
         df_clientes = df_clientes.sort_values(by="Facturación Aprobada", ascending=False)
+        df_clientes["Facturación Aprobada"] = df_clientes["Facturación Aprobada"].apply(lambda x: f"${x:,.2f}")
         st.dataframe(
-            df_clientes.style.format({"Facturación Aprobada": "${:,.2f}"}),
+            df_clientes,
             use_container_width=True, 
             hide_index=True
         )
@@ -321,8 +322,9 @@ with tab_recursos:
             df_mo = df_mo[[c for c in cols_mo if c in df_mo.columns]]
             df_mo = df_mo.rename(columns={"categoria": "Categoría", "descripcion": "Descripción", "costo_hora": "Costo/Hora"})
             if "Costo/Hora" in df_mo.columns:
+                 df_mo["Costo/Hora"] = df_mo["Costo/Hora"].apply(lambda x: f"${float(x):,.2f}")
                  st.dataframe(
-                     df_mo.style.format({"Costo/Hora": "${:,.2f}"}), 
+                     df_mo, 
                      use_container_width=True, 
                      hide_index=True
                  )
@@ -340,8 +342,9 @@ with tab_recursos:
             df_insumos = df_insumos[[c for c in cols_to_show if c in df_insumos.columns]]
             df_insumos = df_insumos.rename(columns={"denominacion": "Denominación", "proveedor": "Proveedor", "costo_unitario": "Costo"})
             if "Costo" in df_insumos.columns:
+                 df_insumos["Costo"] = df_insumos["Costo"].apply(lambda x: f"${float(x):,.2f}")
                  st.dataframe(
-                     df_insumos.style.format({"Costo": "${:,.2f}"}), 
+                     df_insumos, 
                      use_container_width=True, 
                      hide_index=True
                  )
