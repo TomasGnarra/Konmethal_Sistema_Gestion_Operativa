@@ -193,7 +193,8 @@ def generar_pdf_y_enviar(presupuesto_id: int, ot_id: str):
         pdf_bytes = generar_pdf_presupuesto(ot, cliente, presupuesto)
         
         # Subir a Supabase Storage
-        nombre_archivo = f"{ot_id}/presupuesto_{ot_id}.pdf"
+        marca_tiempo = datetime.now().strftime("%Y%m%d_%H%M%S")
+        nombre_archivo = f"{ot_id}/presupuesto_{ot_id}_{marca_tiempo}.pdf"
         try:
             pdf_url = subir_archivo_storage(
                 bucket="presupuestos-pdf",
