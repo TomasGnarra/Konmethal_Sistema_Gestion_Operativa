@@ -90,16 +90,16 @@ def renderizar_resumen_economico(presupuesto, items_mo, items_mat, items_serv, o
     suma_serv = sum(i.get("monto", 0) for i in items_serv)
     ganancia_neta = total_venta - total_costo
 
-    html_ticket = f"""<div style="background-color: #F5F5F5; border-top: 4px solid #1A3A6B; border-bottom: 4px solid #1A3A6B; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 1.05em; color: #1C1C1C;">
-<div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Mano de obra:</span> <span>{formatear_moneda(suma_mo)}</span></div>
-<div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Materiales:</span> <span>{formatear_moneda(suma_mat)}</span></div>
-<div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Servicios:</span> <span>{formatear_moneda(suma_serv)}</span></div>
-<div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Otros gastos:</span> <span>{formatear_moneda(otros_gastos)}</span></div>
+    html_ticket = f"""<div style="background-color: #F5F5F5; border-top: 4px solid #1A3A6B; border-bottom: 4px solid #1A3A6B; padding: 15px 18px; border-radius: 4px; font-family: monospace; font-size: 0.98em; line-height: 1.45; color: #1C1C1C;">
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><span style="flex: 1 1 auto;">Mano de obra:</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(suma_mo)}</span></div>
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><span style="flex: 1 1 auto;">Materiales:</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(suma_mat)}</span></div>
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><span style="flex: 1 1 auto;">Servicios:</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(suma_serv)}</span></div>
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><span style="flex: 1 1 auto;">Otros gastos:</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(otros_gastos)}</span></div>
 <hr style="border-top: 1px dashed #4A4A4A; margin: 10px 0;">
-<div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><strong>COSTO TOTAL:</strong> <strong>{formatear_moneda(total_costo)}</strong></div>
-<div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Ganancia {pct_ganancia}%:</span> <span>{formatear_moneda(ganancia_neta)}</span></div>
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><strong style="flex: 1 1 auto;">COSTO TOTAL:</strong> <strong style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(total_costo)}</strong></div>
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><span style="flex: 1 1 auto;">Ganancia {pct_ganancia}%:</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(ganancia_neta)}</span></div>
 <hr style="border-top: 1px solid #1A3A6B; margin: 10px 0;">
-<div style="display: flex; justify-content: space-between; font-size: 1.15em; font-weight: bold; color: #27AE60;"><span>PRECIO VENTA:</span> <span>{formatear_moneda(total_venta)}</span></div>
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; font-size: 1.08em; font-weight: bold; color: #27AE60;"><span style="flex: 1 1 auto;">PRECIO VENTA:</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(total_venta)}</span></div>
 </div>"""
     st.markdown(html_ticket, unsafe_allow_html=True)
 
@@ -632,7 +632,7 @@ def mostrar_pagina():
     st.divider()
 
     # Layout principal: columnas
-    col_contenido, col_resumen = st.columns([2, 1], gap="large")
+    col_contenido, col_resumen = st.columns([1.7, 1.3], gap="large")
 
     with col_resumen:
         tc, tv = renderizar_resumen_economico(presupuesto_existente, items_mo, items_mat, items_serv, otros_gastos, pct_ganancia)
