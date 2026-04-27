@@ -64,14 +64,47 @@ def calcular_total_presupuesto(
     Returns:
         Tupla (total_costo, total_venta)
     """
+    resumen = calcular_resumen_presupuesto(
+        items_mano_obra,
+        items_materiales,
+        items_servicios,
+        otros_gastos,
+        porcentaje_ganancia,
+    )
+    return resumen["total_costo"], resumen["total_venta"]
+
+
+def calcular_resumen_presupuesto(
+    items_mano_obra: list,
+    items_materiales: list,
+    items_servicios: list,
+    otros_gastos: float,
+    porcentaje_ganancia: float,
+) -> dict:
+    """
+    Calcula el resumen económico completo del presupuesto.
+
+    Regla comercial:
+    - El margen de ganancia se aplica únicamente sobre la mano de obra.
+    """
     total_mo = sum(item.get("subtotal", 0) for item in items_mano_obra)
     total_mat = sum(item.get("subtotal", 0) for item in items_materiales)
     total_serv = sum(item.get("monto", 0) for item in items_servicios)
-    
+
+    ganancia = total_mo * (porcentaje_ganancia / 100)
     total_costo = total_mo + total_mat + total_serv + otros_gastos
-    total_venta = total_costo * (1 + porcentaje_ganancia / 100)
-    
-    return round(total_costo, 2), round(total_venta, 2)
+    total_venta = total_costo + ganancia
+
+    return {
+        "total_mano_obra": round(total_mo, 2),
+        "total_materiales": round(total_mat, 2),
+        "total_servicios": round(total_serv, 2),
+        "otros_gastos": round(otros_gastos or 0.0, 2),
+        "porcentaje_ganancia": round(porcentaje_ganancia or 0.0, 2),
+        "ganancia": round(ganancia, 2),
+        "total_costo": round(total_costo, 2),
+        "total_venta": round(total_venta, 2),
+    }
 
 
 def calcular_atraso(fecha_prevista: Optional[str]) -> int:

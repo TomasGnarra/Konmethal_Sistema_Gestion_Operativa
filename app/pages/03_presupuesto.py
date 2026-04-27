@@ -11,7 +11,7 @@ import json
 from app.utils.supabase_client import obtener_url_api
 from app.utils.helpers import (
     formatear_moneda, formatear_fecha,
-    calcular_total_presupuesto,
+    calcular_resumen_presupuesto,
     obtener_info_estado_presupuesto
 )
 from app.components.sidebar import render_sidebar
@@ -81,14 +81,15 @@ def renderizar_resumen_economico(presupuesto, items_mo, items_mat, items_serv, o
     """Renderiza el panel de resumen económico."""
     st.markdown("### 💰 Resumen Económico")
 
-    total_costo, total_venta = calcular_total_presupuesto(
+    resumen = calcular_resumen_presupuesto(
         items_mo, items_mat, items_serv, otros_gastos, pct_ganancia
     )
-
-    suma_mo = sum(i.get("subtotal", 0) for i in items_mo)
-    suma_mat = sum(i.get("subtotal", 0) for i in items_mat)
-    suma_serv = sum(i.get("monto", 0) for i in items_serv)
-    ganancia_neta = total_venta - total_costo
+    total_costo = resumen["total_costo"]
+    total_venta = resumen["total_venta"]
+    suma_mo = resumen["total_mano_obra"]
+    suma_mat = resumen["total_materiales"]
+    suma_serv = resumen["total_servicios"]
+    ganancia_neta = resumen["ganancia"]
 
     html_ticket = f"""<div style="background-color: #F5F5F5; border-top: 4px solid #1A3A6B; border-bottom: 4px solid #1A3A6B; padding: 15px 18px; border-radius: 4px; font-family: monospace; font-size: 0.98em; line-height: 1.45; color: #1C1C1C;">
 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><span style="flex: 1 1 auto;">Mano de obra:</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(suma_mo)}</span></div>
@@ -97,7 +98,7 @@ def renderizar_resumen_economico(presupuesto, items_mo, items_mat, items_serv, o
 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><span style="flex: 1 1 auto;">Otros gastos:</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(otros_gastos)}</span></div>
 <hr style="border-top: 1px dashed #4A4A4A; margin: 10px 0;">
 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><strong style="flex: 1 1 auto;">COSTO TOTAL:</strong> <strong style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(total_costo)}</strong></div>
-<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><span style="flex: 1 1 auto;">Ganancia {pct_ganancia}%:</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(ganancia_neta)}</span></div>
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><span style="flex: 1 1 auto;">Margen sobre MO ({pct_ganancia}%):</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(ganancia_neta)}</span></div>
 <hr style="border-top: 1px solid #1A3A6B; margin: 10px 0;">
 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; font-size: 1.08em; font-weight: bold; color: #27AE60;"><span style="flex: 1 1 auto;">PRECIO VENTA:</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(total_venta)}</span></div>
 </div>"""
