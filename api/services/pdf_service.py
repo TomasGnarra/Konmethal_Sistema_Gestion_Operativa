@@ -49,6 +49,11 @@ def _estilo_tabla_detalle(color_primario: colors.Color) -> TableStyle:
     ])
 
 
+def _texto_celda(texto, estilo):
+    """Crea una celda Paragraph para permitir saltos de línea limpios."""
+    return Paragraph(str(texto or "-"), estilo)
+
+
 def generar_pdf_presupuesto(ot: dict, cliente: dict, presupuesto: dict) -> bytes:
     """
     Genera un PDF de presupuesto listo para enviar al cliente.
@@ -98,6 +103,18 @@ def generar_pdf_presupuesto(ot: dict, cliente: dict, presupuesto: dict) -> bytes
         fontSize=9,
         leading=12,
         textColor=color_texto,
+    )
+    estilo_celda = ParagraphStyle(
+        "CeldaKonmethal",
+        parent=estilo_normal,
+        fontSize=8.5,
+        leading=10,
+        wordWrap="CJK",
+    )
+    estilo_celda_derecha = ParagraphStyle(
+        "CeldaDerechaKonmethal",
+        parent=estilo_celda,
+        alignment=TA_RIGHT,
     )
     estilo_derecha = ParagraphStyle(
         "DerechaKonmethal",
@@ -219,13 +236,13 @@ def generar_pdf_presupuesto(ot: dict, cliente: dict, presupuesto: dict) -> bytes
         datos_mo = [["Categoria", "Descripcion", "$ / Hora", "Horas", "Subtotal"]]
         for item in items_mo:
             datos_mo.append([
-                item.get("categoria", "-"),
-                item.get("descripcion", "-"),
-                _formatear_moneda(item.get("costo_hora", 0)),
-                str(item.get("cantidad_horas", 0)),
-                _formatear_moneda(item.get("subtotal", 0)),
+                _texto_celda(item.get("categoria", "-"), estilo_celda),
+                _texto_celda(item.get("descripcion", "-"), estilo_celda),
+                _texto_celda(_formatear_moneda(item.get("costo_hora", 0)), estilo_celda_derecha),
+                _texto_celda(str(item.get("cantidad_horas", 0)), estilo_celda_derecha),
+                _texto_celda(_formatear_moneda(item.get("subtotal", 0)), estilo_celda_derecha),
             ])
-        tabla_mo = Table(datos_mo, colWidths=[1.8 * cm, 6.6 * cm, 2.4 * cm, 1.8 * cm, 3.2 * cm])
+        tabla_mo = Table(datos_mo, colWidths=[1.6 * cm, 7.1 * cm, 2.3 * cm, 1.6 * cm, 3.2 * cm])
         estilo_mo = _estilo_tabla_detalle(color_primario)
         estilo_mo.add("ALIGN", (2, 1), (-1, -1), "RIGHT")
         tabla_mo.setStyle(estilo_mo)
@@ -236,13 +253,13 @@ def generar_pdf_presupuesto(ot: dict, cliente: dict, presupuesto: dict) -> bytes
         datos_mat = [["Denominacion", "Unidad", "$ / Unidad", "Cantidad", "Subtotal"]]
         for item in items_mat:
             datos_mat.append([
-                item.get("denominacion", "-"),
-                item.get("unidad", "-"),
-                _formatear_moneda(item.get("costo_unitario", 0)),
-                str(item.get("cantidad", 0)),
-                _formatear_moneda(item.get("subtotal", 0)),
+                _texto_celda(item.get("denominacion", "-"), estilo_celda),
+                _texto_celda(item.get("unidad", "-"), estilo_celda),
+                _texto_celda(_formatear_moneda(item.get("costo_unitario", 0)), estilo_celda_derecha),
+                _texto_celda(str(item.get("cantidad", 0)), estilo_celda_derecha),
+                _texto_celda(_formatear_moneda(item.get("subtotal", 0)), estilo_celda_derecha),
             ])
-        tabla_mat = Table(datos_mat, colWidths=[5.4 * cm, 1.7 * cm, 2.6 * cm, 2.0 * cm, 3.1 * cm])
+        tabla_mat = Table(datos_mat, colWidths=[5.9 * cm, 1.5 * cm, 2.5 * cm, 1.8 * cm, 3.1 * cm])
         estilo_mat = _estilo_tabla_detalle(color_primario)
         estilo_mat.add("ALIGN", (2, 1), (-1, -1), "RIGHT")
         tabla_mat.setStyle(estilo_mat)
@@ -253,8 +270,8 @@ def generar_pdf_presupuesto(ot: dict, cliente: dict, presupuesto: dict) -> bytes
         datos_serv = [["Descripcion", "Monto"]]
         for item in items_serv:
             datos_serv.append([
-                item.get("descripcion", "-"),
-                _formatear_moneda(item.get("monto", 0)),
+                _texto_celda(item.get("descripcion", "-"), estilo_celda),
+                _texto_celda(_formatear_moneda(item.get("monto", 0)), estilo_celda_derecha),
             ])
         tabla_serv = Table(datos_serv, colWidths=[12.2 * cm, 3.6 * cm])
         estilo_serv = _estilo_tabla_detalle(color_primario)
@@ -269,6 +286,7 @@ def generar_pdf_presupuesto(ot: dict, cliente: dict, presupuesto: dict) -> bytes
     elementos.append(Paragraph("RESUMEN ECONOMICO", estilo_subtitulo))
     tabla_resumen = Table(
         [
+            ["Mano de obra + margen", _formatear_moneda(resumen["total_mano_obra"] + resumen["ganancia"])],
             ["Mano de obra", _formatear_moneda(resumen["total_mano_obra"])],
             ["Materiales e insumos", _formatear_moneda(resumen["total_materiales"])],
             ["Servicios de terceros", _formatear_moneda(resumen["total_servicios"])],
@@ -280,17 +298,18 @@ def generar_pdf_presupuesto(ot: dict, cliente: dict, presupuesto: dict) -> bytes
         colWidths=[11.1 * cm, 4.7 * cm],
     )
     tabla_resumen.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 3), color_fondo),
-        ("BACKGROUND", (0, 4), (-1, 5), colors.white),
-        ("BACKGROUND", (0, 6), (-1, 6), colors.HexColor("#EAF7F0")),
+        ("BACKGROUND", (0, 0), (-1, 4), color_fondo),
+        ("BACKGROUND", (0, 5), (-1, 6), colors.white),
+        ("BACKGROUND", (0, 7), (-1, 7), colors.HexColor("#EAF7F0")),
         ("BOX", (0, 0), (-1, -1), 0.75, color_borde),
         ("INNERGRID", (0, 0), (-1, -1), 0.5, color_borde),
         ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-        ("FONTNAME", (0, 4), (-1, 5), "Helvetica-Bold"),
-        ("FONTNAME", (0, 6), (-1, 6), "Helvetica-Bold"),
-        ("TEXTCOLOR", (0, 6), (-1, 6), color_acento),
-        ("FONTSIZE", (0, 0), (-1, 5), 9.5),
-        ("FONTSIZE", (0, 6), (-1, 6), 13),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 5), (-1, 6), "Helvetica-Bold"),
+        ("FONTNAME", (0, 7), (-1, 7), "Helvetica-Bold"),
+        ("TEXTCOLOR", (0, 7), (-1, 7), color_acento),
+        ("FONTSIZE", (0, 0), (-1, 6), 9.5),
+        ("FONTSIZE", (0, 7), (-1, 7), 13),
         ("LEFTPADDING", (0, 0), (-1, -1), 8),
         ("RIGHTPADDING", (0, 0), (-1, -1), 8),
         ("TOPPADDING", (0, 0), (-1, -1), 7),

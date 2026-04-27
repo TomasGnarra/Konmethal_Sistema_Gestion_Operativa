@@ -7,6 +7,21 @@ from datetime import date, datetime
 from typing import Optional
 
 
+def _a_float(valor) -> float:
+    """Convierte valores numéricos o strings a float de forma tolerante."""
+    if valor is None:
+        return 0.0
+    if isinstance(valor, (int, float)):
+        return float(valor)
+    if isinstance(valor, str):
+        normalizado = valor.strip().replace("$", "").replace(".", "").replace(",", ".")
+        try:
+            return float(normalizado)
+        except ValueError:
+            return 0.0
+    return 0.0
+
+
 def generar_numero_ot(anio: int, ultimo_numero: int) -> str:
     """
     Genera el siguiente número de OT con formato OT-AÑO-NRO.
@@ -87,9 +102,12 @@ def calcular_resumen_presupuesto(
     Regla comercial:
     - El margen de ganancia se aplica únicamente sobre la mano de obra.
     """
-    total_mo = sum(item.get("subtotal", 0) for item in items_mano_obra)
-    total_mat = sum(item.get("subtotal", 0) for item in items_materiales)
-    total_serv = sum(item.get("monto", 0) for item in items_servicios)
+    total_mo = sum(_a_float(item.get("subtotal", 0)) for item in items_mano_obra)
+    total_mat = sum(_a_float(item.get("subtotal", 0)) for item in items_materiales)
+    total_serv = sum(_a_float(item.get("monto", 0)) for item in items_servicios)
+
+    otros_gastos = _a_float(otros_gastos)
+    porcentaje_ganancia = _a_float(porcentaje_ganancia)
 
     ganancia = total_mo * (porcentaje_ganancia / 100)
     total_costo = total_mo + total_mat + total_serv + otros_gastos

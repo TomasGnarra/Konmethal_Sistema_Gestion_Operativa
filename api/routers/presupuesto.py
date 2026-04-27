@@ -179,6 +179,16 @@ def generar_pdf_y_enviar(presupuesto_id: int, ot_id: str):
         if not presupuesto:
             raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
         
+        # Recalcular totales antes de generar el PDF para evitar inconsistencias
+        datos_recalculados = recalcular_totales_presupuesto({
+            "items_mano_obra": presupuesto.get("items_mano_obra", []),
+            "items_materiales": presupuesto.get("items_materiales", []),
+            "items_servicios": presupuesto.get("items_servicios", []),
+            "otros_gastos": presupuesto.get("otros_gastos", 0.0),
+            "porcentaje_ganancia": presupuesto.get("porcentaje_ganancia", 0.0),
+        })
+        presupuesto.update(datos_recalculados)
+
         # Generar PDF
         pdf_bytes = generar_pdf_presupuesto(ot, cliente, presupuesto)
         
@@ -196,7 +206,7 @@ def generar_pdf_y_enviar(presupuesto_id: int, ot_id: str):
             pdf_url = None
         
         # Actualizar presupuesto
-        datos_actualizar = {"estado": "ENVIADO"}
+        datos_actualizar = {"estado": "ENVIADO", **datos_recalculados}
         if pdf_url:
             datos_actualizar["pdf_url"] = pdf_url
 
@@ -245,6 +255,15 @@ def descargar_pdf(presupuesto_id: int, ot_id: str):
 
         if not presupuesto:
             raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
+
+        datos_recalculados = recalcular_totales_presupuesto({
+            "items_mano_obra": presupuesto.get("items_mano_obra", []),
+            "items_materiales": presupuesto.get("items_materiales", []),
+            "items_servicios": presupuesto.get("items_servicios", []),
+            "otros_gastos": presupuesto.get("otros_gastos", 0.0),
+            "porcentaje_ganancia": presupuesto.get("porcentaje_ganancia", 0.0),
+        })
+        presupuesto.update(datos_recalculados)
 
         pdf_bytes = generar_pdf_presupuesto(ot, cliente or {}, presupuesto)
 
