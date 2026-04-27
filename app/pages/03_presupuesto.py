@@ -551,19 +551,27 @@ def mostrar_pagina():
         pres = presupuestos_map.get(ot['id'])
         estado_pres = pres.get("estado") if pres else "SIN PRES"
         label = f"{ot['id']} — {cliente_nombre} | {ot.get('maquina', '-')} [{estado_pres}]"
-        opciones_ot[label] = ot["id"]
+        opciones_ot[ot["id"]] = label
+
+    opciones_select = ["Seleccionar..."] + list(opciones_ot.keys())
+    seleccion_guardada = st.session_state.get("presupuesto_ot_seleccionada", "Seleccionar...")
+    if seleccion_guardada not in opciones_select:
+        seleccion_guardada = "Seleccionar..."
+        st.session_state["presupuesto_ot_seleccionada"] = seleccion_guardada
 
     ot_seleccionada = st.selectbox(
         "Seleccionar OT para ver detalles y editar",
-        ["Seleccionar..."] + list(opciones_ot.keys()),
-        index=0
+        opciones_select,
+        index=opciones_select.index(seleccion_guardada),
+        key="presupuesto_ot_seleccionada",
+        format_func=lambda ot_key: "Seleccionar..." if ot_key == "Seleccionar..." else opciones_ot.get(ot_key, ot_key),
     )
 
     if ot_seleccionada == "Seleccionar...":
         st.info("👆 Seleccioná una OT de la lista para ver sus detalles y editar el presupuesto.")
         return
 
-    ot_id = opciones_ot[ot_seleccionada]
+    ot_id = ot_seleccionada
 
     # Cargar datos completos de la OT seleccionada
     try:
