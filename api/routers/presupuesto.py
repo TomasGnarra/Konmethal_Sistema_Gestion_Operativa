@@ -12,6 +12,7 @@ from api.db.supabase import (
     crear_presupuesto,
     obtener_presupuesto_por_ot,
     actualizar_presupuesto,
+    obtener_cliente,
     obtener_ot_por_id,
     obtener_cliente_por_id,
     actualizar_ot,
@@ -33,8 +34,23 @@ from api.models.modelos import (
     InsumoConsumibleCrear,
 )
 from api.services.pdf_service import generar_pdf_presupuesto
+from app.utils.helpers import calcular_total_presupuesto
 
 router = APIRouter(prefix="/presupuesto", tags=["Presupuestos"])
+
+
+def recalcular_totales_presupuesto(datos_presupuesto: dict) -> dict:
+    """Normaliza totales de presupuesto en base a los ítems y variables finales."""
+    total_costo, total_venta = calcular_total_presupuesto(
+        datos_presupuesto.get("items_mano_obra", []) or [],
+        datos_presupuesto.get("items_materiales", []) or [],
+        datos_presupuesto.get("items_servicios", []) or [],
+        datos_presupuesto.get("otros_gastos", 0.0) or 0.0,
+        datos_presupuesto.get("porcentaje_ganancia", 0.0) or 0.0,
+    )
+    datos_presupuesto["total_costo"] = total_costo
+    datos_presupuesto["total_venta"] = total_venta
+    return datos_presupuesto
 
 
 @router.post("/")
@@ -46,7 +62,7 @@ def crear_nuevo_presupuesto(datos: PresupuestoCrear):
         if not ot:
             raise HTTPException(status_code=404, detail=f"OT {datos.ot_id} no encontrada")
         
-        datos_presupuesto = datos.model_dump()
+        datos_presupuesto = recalcular_totales_presupuesto(datos.model_dump())
         datos_presupuesto["estado"] = "BORRADOR"
         
         presupuesto = crear_presupuesto(datos_presupuesto)
@@ -86,6 +102,34 @@ def actualizar_datos_presupuesto(presupuesto_id: int, datos: PresupuestoActualiz
         if not campos:
             raise HTTPException(status_code=400, detail="No se proporcionaron campos para actualizar")
         
+        campos_recalculo = {
+            "items_mano_obra",
+            "items_materiales",
+            "items_servicios",
+            "otros_gastos",
+            "porcentaje_ganancia",
+        }
+
+        if campos_recalculo.intersection(campos):
+            presupuesto_actual = None
+            try:
+                cliente = obtener_cliente()
+                resp_pres = cliente.table("presupuesto").select("*").eq("id", presupuesto_id).execute()
+                if resp_pres.data:
+                    presupuesto_actual = resp_pres.data[0]
+            except Exception:
+                presupuesto_actual = None
+
+            base = presupuesto_actual or {}
+            datos_recalculados = {
+                "items_mano_obra": campos.get("items_mano_obra", base.get("items_mano_obra", [])),
+                "items_materiales": campos.get("items_materiales", base.get("items_materiales", [])),
+                "items_servicios": campos.get("items_servicios", base.get("items_servicios", [])),
+                "otros_gastos": campos.get("otros_gastos", base.get("otros_gastos", 0.0)),
+                "porcentaje_ganancia": campos.get("porcentaje_ganancia", base.get("porcentaje_ganancia", 0.0)),
+            }
+            campos.update(recalcular_totales_presupuesto(datos_recalculados))
+
         presupuesto = actualizar_presupuesto(presupuesto_id, campos)
         return {"mensaje": "Presupuesto actualizado", "presupuesto": presupuesto}
     except HTTPException:
@@ -234,9 +278,8 @@ def registrar_respuesta_cliente(presupuesto_id: int, datos: RespuestaClientePres
         # Buscar presupuesto por ID
         # Nota: necesitamos una forma de obtener presupuesto por ID, no solo por OT
         # Por ahora, vamos a hacer una query directa en la función
-        from api.db.supabase import supabase
-
-        resp_pres = supabase.table("presupuesto").select("*").eq("id", presupuesto_id).execute()
+        cliente = obtener_cliente()
+        resp_pres = cliente.table("presupuesto").select("*").eq("id", presupuesto_id).execute()
 
         if not resp_pres.data or len(resp_pres.data) == 0:
             raise HTTPException(status_code=404, detail=f"Presupuesto {presupuesto_id} no encontrado")

@@ -81,18 +81,14 @@ def renderizar_resumen_economico(presupuesto, items_mo, items_mat, items_serv, o
     """Renderiza el panel de resumen económico."""
     st.markdown("### 💰 Resumen Económico")
 
-    if presupuesto:
-        total_costo = presupuesto.get("total_costo", 0.0)
-        total_venta = presupuesto.get("total_venta", 0.0)
-    else:
-        total_costo, total_venta = calcular_total_presupuesto(
-            items_mo, items_mat, items_serv, otros_gastos, pct_ganancia
-        )
+    total_costo, total_venta = calcular_total_presupuesto(
+        items_mo, items_mat, items_serv, otros_gastos, pct_ganancia
+    )
 
     suma_mo = sum(i.get("subtotal", 0) for i in items_mo)
     suma_mat = sum(i.get("subtotal", 0) for i in items_mat)
     suma_serv = sum(i.get("monto", 0) for i in items_serv)
-    ganancia_neta = total_costo * (pct_ganancia / 100)
+    ganancia_neta = total_venta - total_costo
 
     html_ticket = f"""<div style="background-color: #F5F5F5; border-top: 4px solid #1A3A6B; border-bottom: 4px solid #1A3A6B; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 1.05em; color: #1C1C1C;">
 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Mano de obra:</span> <span>{formatear_moneda(suma_mo)}</span></div>

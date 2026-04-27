@@ -52,19 +52,27 @@ def actualizar_estado_seguimiento(ot_id: str, datos: OrdenTrabajoActualizar):
         ot = obtener_ot_por_id(ot_id)
         if not ot:
             raise HTTPException(status_code=404, detail=f"OT {ot_id} no encontrada")
-        
+
         campos = {k: v for k, v in datos.model_dump().items() if v is not None}
         if not campos:
             raise HTTPException(status_code=400, detail="No se proporcionaron campos para actualizar")
-        
+
         ot_actualizada = actualizar_ot(ot_id, campos)
+        if not ot_actualizada:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No se pudo actualizar la OT {ot_id}. Verifica que los valores sean válidos."
+            )
         return {"mensaje": f"OT {ot_id} actualizada", "ot": ot_actualizada}
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        error_msg = str(e)
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
-            detail=f"Error al actualizar OT: {str(e)}",
+            detail=f"Error al actualizar OT {ot_id}: {error_msg}",
         )
 
 
