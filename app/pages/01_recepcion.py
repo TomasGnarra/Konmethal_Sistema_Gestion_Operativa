@@ -5,6 +5,7 @@ Crea la OT y su recepción técnica asociada.
 """
 
 import streamlit as st
+st.set_page_config(page_title="Konmethal — Recepción", page_icon="📥", layout="wide", initial_sidebar_state="expanded")
 import httpx
 
 from app.utils.supabase_client import obtener_url_api

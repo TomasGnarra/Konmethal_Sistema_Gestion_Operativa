@@ -234,13 +234,16 @@ def generar_pdf_presupuesto(ot: dict, cliente: dict, presupuesto: dict) -> bytes
     if items_mo:
         elementos.append(Paragraph("MANO DE OBRA", estilo_subtitulo))
         datos_mo = [["Categoria", "Descripcion", "$ / Hora", "Horas", "Subtotal"]]
+        factor_ganancia = 1 + (porcentaje / 100)
         for item in items_mo:
+            costo_hora_venta = item.get("costo_hora", 0) * factor_ganancia
+            subtotal_venta = item.get("subtotal", 0) * factor_ganancia
             datos_mo.append([
                 _texto_celda(item.get("categoria", "-"), estilo_celda),
                 _texto_celda(item.get("descripcion", "-"), estilo_celda),
-                _texto_celda(_formatear_moneda(item.get("costo_hora", 0)), estilo_celda_derecha),
+                _texto_celda(_formatear_moneda(costo_hora_venta), estilo_celda_derecha),
                 _texto_celda(str(item.get("cantidad_horas", 0)), estilo_celda_derecha),
-                _texto_celda(_formatear_moneda(item.get("subtotal", 0)), estilo_celda_derecha),
+                _texto_celda(_formatear_moneda(subtotal_venta), estilo_celda_derecha),
             ])
         tabla_mo = Table(datos_mo, colWidths=[1.6 * cm, 7.1 * cm, 2.3 * cm, 1.6 * cm, 3.2 * cm])
         estilo_mo = _estilo_tabla_detalle(color_primario)
@@ -286,30 +289,25 @@ def generar_pdf_presupuesto(ot: dict, cliente: dict, presupuesto: dict) -> bytes
     elementos.append(Paragraph("RESUMEN ECONOMICO", estilo_subtitulo))
     tabla_resumen = Table(
         [
-            ["Mano de obra + margen", _formatear_moneda(resumen["total_mano_obra"] + resumen["ganancia"])],
-            ["Mano de obra", _formatear_moneda(resumen["total_mano_obra"])],
+            ["Mano de obra", _formatear_moneda(resumen["total_mano_obra"] + resumen["ganancia"])],
             ["Materiales e insumos", _formatear_moneda(resumen["total_materiales"])],
             ["Servicios de terceros", _formatear_moneda(resumen["total_servicios"])],
             ["Otros gastos", _formatear_moneda(resumen["otros_gastos"])],
-            ["Costo total", _formatear_moneda(resumen["total_costo"])],
-            [f"Margen sobre mano de obra ({resumen['porcentaje_ganancia']}%)", _formatear_moneda(resumen["ganancia"])],
-            ["PRECIO FINAL", _formatear_moneda(resumen["total_venta"])],
+            ["TOTAL VENTA:", _formatear_moneda(resumen["total_venta"])],
         ],
         colWidths=[11.1 * cm, 4.7 * cm],
     )
     tabla_resumen.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 4), color_fondo),
-        ("BACKGROUND", (0, 5), (-1, 6), colors.white),
-        ("BACKGROUND", (0, 7), (-1, 7), colors.HexColor("#EAF7F0")),
+        ("BACKGROUND", (0, 0), (-1, -2), color_fondo),
+        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#EAF7F0")),
         ("BOX", (0, 0), (-1, -1), 0.75, color_borde),
         ("INNERGRID", (0, 0), (-1, -1), 0.5, color_borde),
         ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTNAME", (0, 5), (-1, 6), "Helvetica-Bold"),
-        ("FONTNAME", (0, 7), (-1, 7), "Helvetica-Bold"),
-        ("TEXTCOLOR", (0, 7), (-1, 7), color_acento),
-        ("FONTSIZE", (0, 0), (-1, 6), 9.5),
-        ("FONTSIZE", (0, 7), (-1, 7), 13),
+        ("FONTNAME", (0, 0), (-1, -2), "Helvetica-Bold"),
+        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("TEXTCOLOR", (0, -1), (-1, -1), color_acento),
+        ("FONTSIZE", (0, 0), (-1, -2), 9.5),
+        ("FONTSIZE", (0, -1), (-1, -1), 13),
         ("LEFTPADDING", (0, 0), (-1, -1), 8),
         ("RIGHTPADDING", (0, 0), (-1, -1), 8),
         ("TOPPADDING", (0, 0), (-1, -1), 7),
@@ -318,13 +316,6 @@ def generar_pdf_presupuesto(ot: dict, cliente: dict, presupuesto: dict) -> bytes
     elementos.append(tabla_resumen)
 
     elementos.append(Spacer(1, 3 * mm))
-    elementos.append(
-        Paragraph(
-            "Nota: el margen de ganancia se calcula sobre la mano de obra. "
-            "Los materiales, servicios y otros gastos se incorporan al costo directo del trabajo.",
-            estilo_centrado,
-        )
-    )
 
     elementos.append(Spacer(1, 12 * mm))
     elementos.append(HRFlowable(width="100%", thickness=0.5, color=color_secundario))

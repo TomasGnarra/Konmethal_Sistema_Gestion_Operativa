@@ -5,8 +5,10 @@ filtros por estado/cliente/fecha, y detalle expandido.
 """
 
 import streamlit as st
+st.set_page_config(page_title="Konmethal — Seguimiento", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 import httpx
 import pandas as pd
+import json
 from datetime import date
 
 from app.utils.supabase_client import obtener_url_api
@@ -135,6 +137,25 @@ def mostrar_pagina():
     if ot_seleccionada:
         st.markdown("### 📋 Detalles de la Orden")
         st.info(f"**Viendo Detalle: {ot_seleccionada['id']} — {ot_seleccionada.get('cliente', {}).get('nombre', '-')}**")
+
+        recepcion_sel = ot_seleccionada.get("recepcion") or {}
+        fotos = recepcion_sel.get("fotos_urls") or []
+        if isinstance(fotos, str):
+            try:
+                fotos = json.loads(fotos) if fotos else []
+            except (json.JSONDecodeError, TypeError):
+                fotos = [fotos] if fotos else []
+        with st.expander("📷 Ver foto de la pieza"):
+            fotos_validas = [f for f in fotos if f] if isinstance(fotos, list) else []
+            if fotos_validas:
+                cols = st.columns(min(len(fotos_validas), 5))
+                for i, url in enumerate(fotos_validas[:5]):
+                    cols[i].image(url, width=200)
+            else:
+                st.markdown(
+                    '<div style="border: 2px dashed #3A5A7A; border-radius: 6px; padding: 30px; text-align: center; color: #8899AA;">📷 Sin foto</div>',
+                    unsafe_allow_html=True
+                )
 
         # --- Timeline de Hitos ---
         st.markdown("#### 📅 Timeline de la Orden")

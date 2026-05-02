@@ -5,6 +5,7 @@ Permite ver, crear y editar presupuestos desde un panel centralizado.
 """
 
 import streamlit as st
+st.set_page_config(page_title="Konmethal — Presupuesto", page_icon="📋", layout="wide", initial_sidebar_state="expanded")
 import httpx
 import json
 
@@ -96,11 +97,9 @@ def renderizar_resumen_economico(presupuesto, items_mo, items_mat, items_serv, o
 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><span style="flex: 1 1 auto;">Materiales:</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(suma_mat)}</span></div>
 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><span style="flex: 1 1 auto;">Servicios:</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(suma_serv)}</span></div>
 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><span style="flex: 1 1 auto;">Otros gastos:</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(otros_gastos)}</span></div>
-<hr style="border-top: 1px dashed #4A4A4A; margin: 10px 0;">
-<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><strong style="flex: 1 1 auto;">COSTO TOTAL:</strong> <strong style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(total_costo)}</strong></div>
-<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;"><span style="flex: 1 1 auto;">Margen sobre MO ({pct_ganancia}%):</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(ganancia_neta)}</span></div>
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; color: #E67E22;"><span style="flex: 1 1 auto;">+ Ganancia ({pct_ganancia}%):</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(ganancia_neta)}</span></div>
 <hr style="border-top: 1px solid #1A3A6B; margin: 10px 0;">
-<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; font-size: 1.08em; font-weight: bold; color: #27AE60;"><span style="flex: 1 1 auto;">PRECIO VENTA:</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(total_venta)}</span></div>
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; font-size: 1.08em; font-weight: bold; color: #27AE60;"><span style="flex: 1 1 auto;">TOTAL VENTA:</span> <span style="flex: 0 0 auto; white-space: nowrap; text-align: right;">{formatear_moneda(total_venta)}</span></div>
 </div>"""
     st.markdown(html_ticket, unsafe_allow_html=True)
 
@@ -159,23 +158,61 @@ def renderizar_acciones_disponibles(estado_pres, presupuesto, ot_id, url_api, tc
             except Exception as e:
                 st.error(f"❌ Error: {str(e)}")
 
-    # Generar PDF y Enviar
+    # Botones de acciones
     if estado_pres == "APROBADO_INTERNO":
-        if st.button("📄 Generar PDF y Enviar", type="primary", use_container_width=True, key=f"pdf_{ot_id}"):
-            with st.spinner("Generando PDF..."):
-                try:
-                    resp = httpx.post(f"{url_api}/presupuesto/{presupuesto['id']}/generar-pdf", params={"ot_id": ot_id}, timeout=30)
-                    if resp.headers.get("content-type", "").startswith("application/json"):
-                        st.success("✅ PDF generado y presupuesto enviado")
-                        st.info("La OT pasó a estado ESPERANDO_APROBACION")
-                    else:
-                        st.download_button("📥 Descargar PDF", data=resp.content, file_name=f"presupuesto_{ot_id}.pdf", mime="application/pdf")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Error: {str(e)}")
+        col_btn1, col_btn2 = st.columns(2)
 
-    # Descargar PDF (si existe)
-    if presupuesto and presupuesto.get("pdf_url"):
+        # Descargar PDF
+        with col_btn1:
+            if st.button("📥 Descargar PDF", use_container_width=True, key=f"pdf_download_{ot_id}"):
+                with st.spinner("Generando PDF..."):
+                    try:
+                        resp = httpx.post(f"{url_api}/presupuesto/{presupuesto['id']}/generar-pdf", params={"ot_id": ot_id}, timeout=30)
+                        if resp.status_code == 200 and resp.headers.get("content-type", "").startswith("application/pdf"):
+                            st.session_state[f"pdf_content_{ot_id}"] = resp.content
+                            st.success("✅ PDF generado. Descargando...")
+                            st.rerun()
+                        else:
+                            try:
+                                error_msg = resp.json().get("detail", "Error desconocido")
+                            except:
+                                error_msg = f"HTTP {resp.status_code}"
+                            st.error(f"❌ Error generando PDF: {error_msg}")
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+
+            if st.session_state.get(f"pdf_content_{ot_id}"):
+                st.download_button(
+                    "📥 Descargar PDF",
+                    data=st.session_state[f"pdf_content_{ot_id}"],
+                    file_name=f"presupuesto_{ot_id}.pdf",
+                    mime="application/pdf",
+                    key=f"pdf_btn_{ot_id}",
+                    use_container_width=True
+                )
+
+        # Enviar al cliente
+        with col_btn2:
+            if st.button("📤 Enviar al Cliente", type="primary", use_container_width=True, key=f"pdf_send_{ot_id}"):
+                with st.spinner("Enviando presupuesto..."):
+                    try:
+                        resp = httpx.post(f"{url_api}/presupuesto/{presupuesto['id']}/generar-pdf", params={"ot_id": ot_id}, timeout=30)
+                        if resp.status_code == 200:
+                            st.success("✅ Presupuesto enviado al cliente")
+                            st.info("La OT pasó a estado ESPERANDO_APROBACION")
+                            st.session_state.pop(f"pdf_content_{ot_id}", None)
+                            st.rerun()
+                        else:
+                            try:
+                                error_msg = resp.json().get("detail", "Error desconocido")
+                            except:
+                                error_msg = f"HTTP {resp.status_code}"
+                            st.error(f"❌ Error: {error_msg}")
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+
+    # Descargar PDF (si existe y está en otro estado)
+    elif presupuesto and presupuesto.get("pdf_url"):
         st.markdown(f"📎 [Descargar PDF]({presupuesto['pdf_url']})", unsafe_allow_html=True)
 
 
@@ -517,7 +554,17 @@ def mostrar_pagina():
         pres = presupuestos_map.get(nro)
         if pres:
             estado_pres = pres.get("estado", "-")
-            total_venta = formatear_moneda(pres.get("total_venta", 0.0))
+            total_venta_val = pres.get("total_venta")
+            if not total_venta_val:
+                res_calc = calcular_resumen_presupuesto(
+                    pres.get("items_mano_obra") or [],
+                    pres.get("items_materiales") or [],
+                    pres.get("items_servicios") or [],
+                    pres.get("otros_gastos", 0.0) or 0.0,
+                    pres.get("porcentaje_ganancia", 0.0) or 0.0
+                )
+                total_venta_val = res_calc["total_venta"]
+            total_venta = formatear_moneda(total_venta_val)
             info_estado = obtener_info_estado_presupuesto(estado_pres)
             badge_pres = f"<span style='background-color: {info_estado['color']}; color: white; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 0.85em;'>{info_estado['icono']} {estado_pres}</span>"
         else:
@@ -581,6 +628,7 @@ def mostrar_pagina():
         datos_ot = resp_ot.json()
         ot_data = datos_ot.get("ot", {})
         diagnostico_info = datos_ot.get("diagnostico", {})
+        recepcion_info = datos_ot.get("recepcion", {})
     except Exception as e:
         st.error(f"Error al cargar datos de la OT: {str(e)}")
         return
@@ -626,6 +674,24 @@ def mostrar_pagina():
             unsafe_allow_html=True
         )
         st.caption(info_estado['descripcion'])
+
+    fotos = recepcion_info.get("fotos_urls") or []
+    if isinstance(fotos, str):
+        try:
+            fotos = json.loads(fotos) if fotos else []
+        except (json.JSONDecodeError, TypeError):
+            fotos = [fotos] if fotos else []
+    with st.expander("📷 Ver foto de la pieza"):
+        fotos_validas = [f for f in fotos if f] if isinstance(fotos, list) else []
+        if fotos_validas:
+            cols = st.columns(min(len(fotos_validas), 5))
+            for i, url in enumerate(fotos_validas[:5]):
+                cols[i].image(url, width=200)
+        else:
+            st.markdown(
+                '<div style="border: 2px dashed #3A5A7A; border-radius: 6px; padding: 30px; text-align: center; color: #8899AA;">📷 Sin foto</div>',
+                unsafe_allow_html=True
+            )
 
     # Flujo de estados
     renderizar_flujo_estados(estado_pres)

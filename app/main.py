@@ -12,9 +12,10 @@ if root_path not in sys.path:
 
 import streamlit as st
 import httpx
+import json
 from datetime import datetime, date
 
-from app.utils.supabase_client import obtener_url_api
+from app.utils.supabase_client import obtener_url_api, obtener_cliente_supabase_admin
 from app.utils.helpers import formatear_fecha, calcular_atraso, construir_timeline
 from app.components.sidebar import render_sidebar
 from app.components.estado_badge import badge_estado
@@ -235,6 +236,24 @@ if ids_ot:
         c3.markdown(f"**Entrega real:** {formatear_fecha(ot_sel.get('fecha_entrega_real'))}")
         c3.markdown(f"**Técnico:** {diagnostico.get('tecnico_responsable') or '-'}")
 
+        fotos = recepcion.get("fotos_urls") or []
+        if isinstance(fotos, str):
+            try:
+                fotos = json.loads(fotos) if fotos else []
+            except (json.JSONDecodeError, TypeError):
+                fotos = [fotos] if fotos else []
+        with st.expander("📷 Ver foto de la pieza"):
+            fotos_validas = [f for f in fotos if f] if isinstance(fotos, list) else []
+            if fotos_validas:
+                cols = st.columns(min(len(fotos_validas), 5))
+                for i, url in enumerate(fotos_validas[:5]):
+                    cols[i].image(url, width=200)
+            else:
+                st.markdown(
+                    '<div style="border: 2px dashed #3A5A7A; border-radius: 6px; padding: 30px; text-align: center; color: #8899AA;">📷 Sin foto</div>',
+                    unsafe_allow_html=True
+                )
+
         tab_rec, tab_diag, tab_ppto, tab_timeline = st.tabs([
             "📥 Recepción", "🔍 Diagnóstico", "📋 Presupuesto", "📅 Timeline"
         ])
@@ -247,14 +266,53 @@ if ids_ot:
                 r1.markdown(f"**Causa de falla:** {recepcion.get('causa_falla') or '-'}")
                 r2.markdown(f"**Trabajo solicitado:** {recepcion.get('trabajo_solicitado') or '-'}")
                 r2.markdown(f"**Observaciones:** {recepcion.get('observaciones') or '-'}")
+
                 fotos = recepcion.get("fotos_urls") or []
-                if fotos:
+                if isinstance(fotos, str):
+                    try:
+                        fotos = json.loads(fotos) if fotos else []
+                    except (json.JSONDecodeError, TypeError):
+                        fotos = [fotos] if fotos else []
+                fotos_validas = [f for f in fotos if f]
+
+                if fotos_validas:
                     st.markdown("**Fotos:**")
-                    cols_fotos = st.columns(min(len(fotos), 4))
-                    for i, url in enumerate(fotos[:4]):
+                    cols_fotos = st.columns(min(len(fotos_validas), 4))
+                    for i, url in enumerate(fotos_validas[:4]):
                         cols_fotos[i].image(url, use_container_width=True)
             else:
                 st.info("Sin datos de recepción.")
+
+            st.markdown("---")
+            st.markdown("**Agregar foto:**")
+            archivo = st.file_uploader(
+                "Subir foto de la pieza",
+                type=["jpg", "jpeg", "png"],
+                key=f"upload_foto_{ot_sel_id}",
+                label_visibility="collapsed",
+            )
+            if archivo and st.button("📤 Subir foto", key=f"btn_subir_foto_{ot_sel_id}"):
+                with st.spinner("Subiendo foto..."):
+                    try:
+                        from datetime import datetime as _dt
+                        sb_admin = obtener_cliente_supabase_admin()
+                        nombre = f"{ot_sel_id}/{_dt.now().strftime('%Y%m%d_%H%M%S')}_{archivo.name}"
+                        sb_admin.storage.from_("fotos-piezas").upload(
+                            nombre, archivo.getvalue(), {"content-type": archivo.type, "upsert": "true"}
+                        )
+                        url_publica = sb_admin.storage.from_("fotos-piezas").get_public_url(nombre)
+                        fotos_actuales = recepcion.get("fotos_urls") or []
+                        if isinstance(fotos_actuales, str):
+                            try:
+                                fotos_actuales = json.loads(fotos_actuales) if fotos_actuales else []
+                            except (json.JSONDecodeError, TypeError):
+                                fotos_actuales = [fotos_actuales] if fotos_actuales else []
+                        fotos_nuevas = [f for f in fotos_actuales if f] + [url_publica]
+                        sb_admin.table("recepcion_tecnica").update({"fotos_urls": fotos_nuevas}).eq("ot_id", ot_sel_id).execute()
+                        st.success("✅ Foto subida correctamente.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Error al subir foto: {e}")
 
         with tab_diag:
             if diagnostico:

@@ -5,6 +5,7 @@ la estimación de horas, materiales y servicios.
 """
 
 import streamlit as st
+st.set_page_config(page_title="Konmethal — Diagnóstico Técnico", page_icon="🔍", layout="wide", initial_sidebar_state="expanded")
 import httpx
 import json
 from datetime import date
@@ -52,9 +53,31 @@ def mostrar_pagina():
             cliente_nombre = ot.get('cliente', {}).get('nombre', '-') if ot.get('cliente') else '-'
             label = f"{ot['id']} | {cliente_nombre} | {ot.get('maquina', '-')} ({dias_ingreso}d){alerta}"
             opciones_ot.append({"id": ot["id"], "label": label})
-            
+
         selec_label = st.radio("Seleccioná la OT a diagnosticar:", [o["label"] for o in opciones_ot], label_visibility="collapsed")
         ot_id_seleccionada = next(o["id"] for o in opciones_ot if o["label"] == selec_label)
+
+        st.markdown("---")
+        st.markdown("### 📷 Foto de la Pieza")
+        try:
+            resp_foto = httpx.get(f"{url_api}/ot/{ot_id_seleccionada}", timeout=10)
+            fotos = resp_foto.json().get("recepcion", {}).get("fotos_urls") or []
+            if isinstance(fotos, str):
+                try:
+                    fotos = json.loads(fotos) if fotos else []
+                except (json.JSONDecodeError, TypeError):
+                    fotos = [fotos] if fotos else []
+        except Exception:
+            fotos = []
+
+        fotos_validas = [f for f in fotos if f] if isinstance(fotos, list) else []
+        if fotos_validas:
+            st.image(fotos_validas[0], caption="Foto de la pieza", use_container_width=True)
+        else:
+            st.markdown(
+                '<div style="border: 2px dashed #3A5A7A; border-radius: 6px; padding: 40px; text-align: center; color: #8899AA;">📷 Sin foto</div>',
+                unsafe_allow_html=True
+            )
 
     # Inicializar estado para estimaciones de la OT actual
     if st.session_state.get("diag_ot_actual") != ot_id_seleccionada:
@@ -85,17 +108,17 @@ def mostrar_pagina():
             return
             
         st.markdown("### 📋 Resumen de Recepción")
-        recepcion_html = f"""<div style="background-color: #F5F5F5; border-left: 4px solid #E74C3C; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-<div style="font-size: 1.1em; font-weight: bold; color: #1A3A6B; margin-bottom: 5px;">
+        recepcion_html = f"""<div style="background-color: #1A2744; border-left: 4px solid #E74C3C; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+<div style="font-size: 1.1em; font-weight: bold; color: #FFFFFF; margin-bottom: 5px;">
 {ot.get('id', '-')} · {cliente.get('nombre', '-')}
 </div>
-<div style="margin-bottom: 5px;">
+<div style="margin-bottom: 5px; color: #E0E0E0;">
 <strong>Equipo:</strong> {ot.get('maquina', '-')} — {ot.get('descripcion_trabajo', '-')}
 </div>
-<div style="margin-bottom: 5px;">
+<div style="margin-bottom: 5px; color: #E0E0E0;">
 <strong>Ingreso:</strong> {formatear_fecha(ot.get('fecha_ingreso'))} · <strong>Entrega prevista:</strong> {formatear_fecha(ot.get('fecha_entrega_prevista'))}
 </div>
-<div>
+<div style="color: #E0E0E0;">
 <strong>Estado pieza:</strong> {recepcion.get('estado_pieza', '-')} | <strong>Falla reportada:</strong> {recepcion.get('causa_falla', '-')}
 </div>
 </div>"""

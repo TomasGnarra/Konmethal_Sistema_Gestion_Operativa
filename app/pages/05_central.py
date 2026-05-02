@@ -4,23 +4,27 @@ KPIs, gráficos, historial editable de OTs, clientes y gestión de costos.
 """
 
 import io
+import json
 from datetime import date, datetime
 from typing import Optional
 
 import httpx
 import pandas as pd
 import streamlit as st
+st.set_page_config(page_title="Konmethal — Configuración", page_icon="⚙️", layout="wide", initial_sidebar_state="expanded")
 
 from app.components.sidebar import render_sidebar
 from app.utils.helpers import (
     ESTADOS_OT,
     ETAPAS_OT,
+    TIPOS_FALLA,
+    CONCLUSIONES_DIAGNOSTICO,
     calcular_atraso,
     calcular_total_presupuesto,
     formatear_fecha,
     formatear_moneda,
 )
-from app.utils.supabase_client import obtener_url_api
+from app.utils.supabase_client import obtener_url_api, obtener_cliente_supabase_admin
 
 st.set_page_config(
     page_title="Central — Konmethal",
@@ -868,27 +872,93 @@ with tab_detalle:
                         else:
                             st.info("Sin cambios detectados.")
 
-                with st.expander("📥 Recepción Técnica (solo lectura)", expanded=False):
-                    if rec_det:
-                        st.markdown(f"**Estado pieza:** {rec_det.get('estado_pieza', '-')}")
-                        st.markdown(f"**Material base:** {rec_det.get('material_base', '-')}")
-                        st.markdown(f"**Trabajo solicitado:** {rec_det.get('trabajo_solicitado', '-')}")
-                        st.markdown(f"**Causa de falla:** {rec_det.get('causa_falla', '-')}")
-                        if rec_det.get("observaciones"):
-                            st.markdown(f"**Observaciones:** {rec_det['observaciones']}")
-                    else:
-                        st.caption("Sin recepción registrada.")
+                with st.expander("📥 Recepción Técnica ✏️", expanded=False):
+                    nuevo_estado_pieza = st.text_input("Estado de la pieza", value=rec_det.get('estado_pieza') or "", key=f"rec_ep_{ot_id_det}")
+                    nuevo_material = st.text_input("Material base", value=rec_det.get('material_base') or "", key=f"rec_mb_{ot_id_det}")
+                    nuevo_trabajo = st.text_area("Trabajo solicitado", value=rec_det.get('trabajo_solicitado') or "", key=f"rec_ts_{ot_id_det}")
+                    nueva_causa = st.text_input("Causa de falla", value=rec_det.get('causa_falla') or "", key=f"rec_cf_{ot_id_det}")
+                    nuevas_obs = st.text_area("Observaciones", value=rec_det.get('observaciones') or "", key=f"rec_obs_{ot_id_det}")
 
-                with st.expander("🔍 Diagnóstico Técnico (solo lectura)", expanded=False):
-                    if diag_det:
-                        st.markdown(f"**Técnico:** {diag_det.get('tecnico_responsable', '-')}")
-                        st.markdown(f"**Conclusión:** {diag_det.get('conclusion', '-')}")
-                        st.markdown(f"**Tipo falla:** {diag_det.get('tipo_falla', '-')}")
-                        st.markdown(f"**Factibilidad:** {'Sí' if diag_det.get('factibilidad') else 'No'}")
-                        if diag_det.get("notas"):
-                            st.markdown(f"**Notas:** {diag_det['notas']}")
+                    if st.button("💾 Guardar Recepción", key=f"save_rec_{ot_id_det}", type="primary"):
+                        try:
+                            sb = obtener_cliente_supabase_admin()
+                            payload = {
+                                "estado_pieza": nuevo_estado_pieza or None,
+                                "material_base": nuevo_material or None,
+                                "trabajo_solicitado": nuevo_trabajo or None,
+                                "causa_falla": nueva_causa or None,
+                                "observaciones": nuevas_obs or None,
+                            }
+                            sb.table("recepcion_tecnica").update(payload).eq("ot_id", ot_id_det).execute()
+                            st.success("✅ Recepción actualizada.")
+                            st.session_state.central_ots = cargar_ots()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error: {e}")
+
+                    st.markdown("---")
+                    st.markdown("**Fotos:**")
+                    fotos = rec_det.get("fotos_urls") or []
+                    if isinstance(fotos, str):
+                        try:
+                            fotos = json.loads(fotos) if fotos else []
+                        except (json.JSONDecodeError, TypeError):
+                            fotos = [fotos] if fotos else []
+                    fotos_validas = [f for f in fotos if f]
+
+                    if fotos_validas:
+                        cols_fotos = st.columns(min(len(fotos_validas), 5))
+                        for i, url in enumerate(fotos_validas[:5]):
+                            cols_fotos[i].image(url, width=200)
                     else:
-                        st.caption("Sin diagnóstico registrado.")
+                        st.caption("Sin fotos.")
+
+                    archivo = st.file_uploader("Agregar foto", type=["jpg", "jpeg", "png"], key=f"upload_rec_{ot_id_det}", label_visibility="collapsed")
+                    if archivo and st.button("📤 Subir foto", key=f"btn_foto_{ot_id_det}"):
+                        with st.spinner("Subiendo foto..."):
+                            try:
+                                sb = obtener_cliente_supabase_admin()
+                                nombre = f"{ot_id_det}/{datetime.now().strftime('%Y%m%d_%H%M%S')}_{archivo.name}"
+                                sb.storage.from_("fotos-piezas").upload(nombre, archivo.getvalue(), {"content-type": archivo.type, "upsert": "true"})
+                                url_publica = sb.storage.from_("fotos-piezas").get_public_url(nombre)
+                                fotos_nuevas = fotos_validas + [url_publica]
+                                sb.table("recepcion_tecnica").update({"fotos_urls": fotos_nuevas}).eq("ot_id", ot_id_det).execute()
+                                st.success("✅ Foto subida.")
+                                st.session_state.central_ots = cargar_ots()
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Error al subir foto: {e}")
+
+                with st.expander("🔍 Diagnóstico Técnico ✏️", expanded=False):
+                    d1, d2 = st.columns(2)
+                    nuevo_tecnico = d1.text_input("Técnico responsable", value=diag_det.get('tecnico_responsable') or "", key=f"diag_tec_{ot_id_det}")
+                    idx_concl = CONCLUSIONES_DIAGNOSTICO.index(diag_det.get('conclusion')) if diag_det.get('conclusion') in CONCLUSIONES_DIAGNOSTICO else 0
+                    nueva_concl = d2.selectbox("Conclusión", CONCLUSIONES_DIAGNOSTICO, index=idx_concl, format_func=lambda x: x.replace("_", " "), key=f"diag_concl_{ot_id_det}")
+                    idx_tipo = TIPOS_FALLA.index(diag_det.get('tipo_falla')) if diag_det.get('tipo_falla') in TIPOS_FALLA else 0
+                    nuevo_tipo_f = d1.selectbox("Tipo de falla", TIPOS_FALLA, index=idx_tipo, format_func=lambda x: x.capitalize(), key=f"diag_tipo_{ot_id_det}")
+                    nueva_factib = d2.radio("Factibilidad", ["Sí", "No"], index=0 if diag_det.get('factibilidad') else 1, key=f"diag_fact_{ot_id_det}", horizontal=True)
+                    nuevas_dim = st.text_area("Dimensiones", value=diag_det.get('dimensiones') or "", key=f"diag_dim_{ot_id_det}")
+                    nuevas_notas = st.text_area("Notas", value=diag_det.get('notas') or "", key=f"diag_notas_{ot_id_det}")
+                    nuevo_ant = st.text_input("OT antecedente", value=diag_det.get('antecedente_ot') or "", key=f"diag_ant_{ot_id_det}")
+
+                    if st.button("💾 Guardar Diagnóstico", key=f"save_diag_{ot_id_det}", type="primary"):
+                        try:
+                            sb = obtener_cliente_supabase_admin()
+                            payload = {
+                                "tecnico_responsable": nuevo_tecnico or None,
+                                "conclusion": nueva_concl or None,
+                                "tipo_falla": nuevo_tipo_f or None,
+                                "factibilidad": nueva_factib == "Sí",
+                                "dimensiones": nuevas_dim or None,
+                                "notas": nuevas_notas or None,
+                                "antecedente_ot": nuevo_ant or None,
+                            }
+                            sb.table("diagnostico_tecnico").update(payload).eq("ot_id", ot_id_det).execute()
+                            st.success("✅ Diagnóstico actualizado.")
+                            st.session_state.central_ots = cargar_ots()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error: {e}")
 
             # ── Columna derecha: Presupuesto ──────────────────────────────
 

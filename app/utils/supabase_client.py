@@ -38,6 +38,22 @@ def obtener_cliente_supabase() -> Client:
     return create_client(url, clave)
 
 
+@st.cache_resource
+def obtener_cliente_supabase_admin() -> Client:
+    """Cliente Supabase con service key para operaciones de Storage y escritura directa."""
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        clave = st.secrets.get("SUPABASE_SERVICE_KEY") or st.secrets["SUPABASE_ANON_KEY"]
+    except (KeyError, FileNotFoundError):
+        url = os.getenv("SUPABASE_URL")
+        clave = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_ANON_KEY")
+
+    if not url or not clave:
+        raise ValueError("No se encontraron credenciales de Supabase.")
+
+    return create_client(url, clave)
+
+
 def obtener_url_api() -> str:
     """Retorna la URL base de la API FastAPI."""
     try:
